@@ -3,12 +3,13 @@
   require_once ("credentials.php")
 ?>
 <?php // Variables
-  
+  $dbSecurity = NULL;
+  $dbIsOpen = false;
 ?>
 <?php // SQL Functions
   function TableFormat ($tableName, $database = "wbs7")
   {
-    return sprintf ("[%s].[dbo].[%s]", $database, $tableName);
+    return sprintf ("%s", $tableName);
   }
 
   function SINGLE ($results)
@@ -75,24 +76,52 @@
 
   function SqlCmd ($cmd)
   {
-    global $sqlServer, $sqlUser, $sqlPass;
-    $sqlConnection = mssql_connect ($sqlServer, $sqlUser, $sqlPass);
-    if (!$sqlConnection)
-      die("Couldn't connect to server.");
-
+    global $dbSecurity, $dbIsOpen;
+    if (!$dbIsOpen) SqlOpen ();
     Debug (sprintf ("Sql Command: %s", $cmd));
-    $result = array();
-    $query = mssql_query ($cmd);
+    $result = array ();
+    $query = $dbSecurity->query ($cmd);
     
-    if (!is_bool ($query) && mssql_num_rows ($query) > 0)
+    if (!is_bool ($query) && $query->num_rows > 0)
     {
-      while ($row = mssql_fetch_array ($query))
+      while ($row = $query->fetch_assoc ())
         array_push ($result, $row);
 
-      mssql_free_result ($query);
+      $query->free ();
     }
 
-    mssql_close($sqlConnection);
     return $result;
+  }
+
+  function SqlOpen ()
+  {
+    global $dbSecurity, $dbIsOpen, $mysqlUser, $mysqlPass, $mysqlServer, $mysqlDatabase;
+
+    Debug ("Opening connection to security database.");
+    if ($dbIsOpen && $dbSecurity != NULL) 
+    {
+      Debug ("Connection already open; silently returning.");
+      return;
+    }
+
+    $dbSecurity = new mysqli ($mysqlServer, $mysqlUser, $mysqlPass, $mysqlDatabase);
+    if ($dbSecurity->connect_errno) Error ("Could not connect to the security database.");
+
+    $dbIsOpen = true;
+  }
+
+  function SqlClose ()
+  {
+    global $dbSecurity,$dbIsOpen;
+    Debug ("Closing connection to security database.");
+    if (!$dbIsOpen && $dbSecurity == NULL)
+    {
+      Debug ("Connection already closed; silently returning.");
+      return;
+    }
+
+    $dbSecurity->close ();
+    $dbSecurity = NULL;
+    $dbIsOpen = false;
   }
 ?>

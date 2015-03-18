@@ -9,6 +9,9 @@ DROP TABLE IF EXISTS StockMetaData;
 DROP TABLE IF EXISTS StockData;
 DROP TABLE IF EXISTS StockDividend;
 
+DROP TABLE IF EXISTS InsertionProgress;
+DROP TABLE IF EXISTS DataType;
+
 CREATE TABLE IF NOT EXISTS Exchange (
   ExchangeId SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
   ExchangeName CHAR(3) NOT NULL,
@@ -52,5 +55,27 @@ CREATE TABLE IF NOT EXISTS StockDividend (
   StockId SMALLINT UNSIGNED NOT NULL,
   PRIMARY KEY (StockDividendId),
   FOREIGN KEY (StockId) REFERENCES Stock(StockId));
+
+-- Insertion 
+
+CREATE TABLE IF NOT EXISTS DataType (
+  DataTypeId SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  DataTypeName VARCHAR(30) NOT NULL,
+  PRIMARY KEY (DataTypeId),
+  UNIQUE (DataTypeName));
+
+CREATE TABLE IF NOT EXISTS InsertionProgress (
+  InsertionProgressId SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  StartDate DATE NOT NULL,
+  EndDate DATE NOT NULL,
+  SetSize SMALLINT UNSIGNED NOT NULL,
+  SetIndex SMALLINT UNSIGNED NOT NULL,
+  DataTypeId SMALLINT UNSIGNED NOT NULL,
+  PRIMARY KEY (InsertionProgressId),
+  FOREIGN KEY (DataTypeId) REFERENCES DataType(DataTypeId),
+  CONSTRAINT uc_InsertionProgressInfo UNIQUE (StartDate,EndDate,SetSize,SetIndex,DataTypeId));
+
+-- Initial Data
+INSERT INTO DataType (DataTypeName) VALUES ('StockData'),('StockDividend');
 
 -- source ~/git/security/sql/security_data.sql
