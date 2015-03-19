@@ -63,14 +63,4 @@
     $search = sprintf ("SELECT %s FROM %s%s", $content, $from, $whereClause);
     return YahooQuery ($search);
   }
-
-  // TODO: Get rid of this stupid little test main.
-  $from = $yfl["Metadata"];
-  $content = "*";
-  $where = "symbol in (\"aapl\", \"fmc\")";
-
-  $debug = true;
-  $hist_data = YahooSelect ($from, $where, $content);
-
-  PrintObjects ($hist_data);
 ?>

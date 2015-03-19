@@ -39,6 +39,43 @@
       Error ($message, $code);
   }
 
+  // Date Methods
+  function DateGet ($dateObj = NULL)
+  {
+    if ($dateObj == NULL)
+      $dateObj = "now";
+
+    if  (is_object ($dateObj))
+      return $dateObj;
+
+    if (is_string ($dateObj))
+      return new DateTime ($dateObj);
+  }
+
+  function DateGetToday ()
+  {
+    return GetDate ("now");
+  }
+
+  function DateFormat ($date)
+  {
+    $dateFormat = "Y-m-d";
+    return $date->format ($dateFormat);
+  }
+
+  function DateCompare ($firstDate, $secondDate)
+  {
+    $firstVal = strtotime (DateFormat ($firstDate));
+    $secondVal = strtotime (DateFormat ($secondDate));
+
+    if ($firstVal == $secondVal)
+      return 0;
+
+    return $firstVal > $secondVal
+      ? 1
+      : -1;
+  }
+
   // Object Printing Methods
   function SanitizeObjectValue ($objectValue)
   {
