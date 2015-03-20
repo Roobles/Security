@@ -27,6 +27,11 @@
     exit ($code);
   }
 
+  function Warn ($message)
+  {
+    Display ("WARNING", $message, "1;31");
+  }
+
   function Message ($message)
   {
     Display ("MESSAGE", $message, "0;32");
@@ -37,6 +42,42 @@
   {
     if (IsNullOrEmpty ($value))
       Error ($message, $code);
+  }
+    
+  function ExpectId ($value, $code = 1)
+  {
+    if (!is_numeric ($value) || intval ($value) < 1)
+      Error (sprintf ("'%s' is not a valid Id.", $value), $code);
+  }
+
+  function ExpectUint ($value, $code = 1)
+  {
+    if (!is_numeric ($value) || intval ($value) < 0)
+      Error (sprintf ("'%s' is not a valid unsigned int.", $value, $code));
+  }
+
+  function ExpectDate ($value, $code = 1)
+  {
+    if (!strtotime ($value))
+      Error (sprintf ("'%s' is not a valid date.", $value), $code);
+  }
+  
+  function ExpectBool ($value, $code = 1)
+  {
+    if (!is_bool ($value))
+      Error ("Expected a type of boolean.", $code);
+  }
+
+  function ExpectObject ($value, $code = 1)
+  {
+    if (!is_object ($value))
+      Error ("Expected an object type.", $code);
+  }
+
+  function ExpectArray ($value, $code = 1)
+  {
+    if (!is_array ($value))
+      Error ("Expected an array type.", $code);
   }
 
   // Date Methods
@@ -54,13 +95,21 @@
 
   function DateGetToday ()
   {
-    return GetDate ("now");
+    return DateGet ("now");
   }
 
-  function DateFormat ($date)
+  function DateFormat ($date = "")
   {
+    $date = DateGet ($date);
     $dateFormat = "Y-m-d";
     return $date->format ($dateFormat);
+  }
+
+  function DateSqlFormat ($date = NULL)
+  {
+    return $date == NULL 
+      ? "NULL"
+      : sprintf ("'%s'", DateFormat ($date));
   }
 
   function DateCompare ($firstDate, $secondDate)
@@ -75,6 +124,57 @@
       ? 1
       : -1;
   }
+
+  // Boolean Methods
+  function BoolFormat ($bool)
+  {
+    return !$bool ? 0 : 1;
+  }
+
+  // Retrieval Methods
+  function ValueGet ($array, $key)
+  {
+    ExpectArray ($array); 
+    if (!isset ($array[$key]))
+      return NULL;
+
+    return $array[$key];
+  }
+
+  function ValueGetCritical ($array, $key, $fatal = true)
+  {
+    $value = ValueGet ($array, $key);
+
+    if ($value == NULL) 
+    {
+      $errMessage = sprintf ("Critical value '%s' was not found in array.", $key);
+      if (!$fatal) throw new Exception ($errMessage);
+      Error ($errMessage);
+    }
+
+    return $value;
+  }
+
+  function Single ($results)
+  {
+    return (count ($results) > 0)
+      ? reset ($results)
+      : false;
+  }
+
+  function StepMultiDimensional ($array)
+  {
+    if (!is_array ($array))
+      return false;
+
+    $firstChild = reset ($array);
+    if (is_array ($firstChild))
+      if (is_array (reset ($firstChild)))
+        return $firstChild;
+
+    return false;
+  }
+
 
   // Object Printing Methods
   function SanitizeObjectValue ($objectValue)
@@ -111,13 +211,8 @@
     if (!is_array ($objects))
       return array ($objects);
 
-    if (count ($objects) > 1)
-      return $objects;
-
-    $firstChild = reset ($objects);
-
-    if (is_array ($firstChild))
-      return GetObjectArray ($firstChild);
+    if ($child = StepMultiDimensional ($objects))
+      return GetObjectArray ($child);
 
     return $objects;
   }

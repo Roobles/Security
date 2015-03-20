@@ -1,13 +1,13 @@
 CREATE DATABASE IF NOT EXISTS security;
 USE security;
 
+DROP TABLE IF EXISTS StockData;
+DROP TABLE IF EXISTS StockMetaData;
+DROP TABLE IF EXISTS StockDividend;
+
 -- DROP TABLE IF EXISTS Stock;
 -- DROP TABLE IF EXISTS Category;
 -- DROP TABLE IF EXISTS Exchange;
-
-DROP TABLE IF EXISTS StockMetaData;
-DROP TABLE IF EXISTS StockData;
-DROP TABLE IF EXISTS StockDividend;
 
 DROP TABLE IF EXISTS InsertionProgress;
 DROP TABLE IF EXISTS DataType;
@@ -37,24 +37,34 @@ CREATE TABLE IF NOT EXISTS Stock (
 
 CREATE TABLE IF NOT EXISTS StockMetaData (
   StockMetaDataId SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  Founded DATE,
+  Founded DATE NOT NULL,
+  IsAlive BOOLEAN NOT NULL,
+  HasDividends BOOLEAN NOT NULL,
   StockId SMALLINT UNSIGNED NOT NULL,
   PRIMARY KEY (StockMetaDataId),
-  FOREIGN KEY (StockId) REFERENCES Stock(StockId));
+  FOREIGN KEY (StockId) REFERENCES Stock(StockId),
+  UNIQUE (StockId));
 
 -- History Data Tables
 
 CREATE TABLE IF NOT EXISTS StockData (
   StockDataId INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  StockDate DATE NOT NULL,
+  High DECIMAL(8,2) NOT NULL,
+  Low DECIMAL(8,2) NOT NULL,
+  Close DECIMAL(8,2) NOT NULL,
   StockId SMALLINT UNSIGNED NOT NULL,
   PRIMARY KEY (StockDataId),
-  FOREIGN KEY (StockId) REFERENCES Stock(StockId));
+  FOREIGN KEY (StockId) REFERENCES Stock(StockId),
+  CONSTRAINT uc_DailyStockEntry UNIQUE (StockId,StockDate));
 
 CREATE TABLE IF NOT EXISTS StockDividend (
   StockDividendId INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  DividendDate DATE NOT NULL,
   StockId SMALLINT UNSIGNED NOT NULL,
   PRIMARY KEY (StockDividendId),
-  FOREIGN KEY (StockId) REFERENCES Stock(StockId));
+  FOREIGN KEY (StockId) REFERENCES Stock(StockId),
+  CONSTRAINT uc_DailyDividend UNIQUE (StockId,DividendDate));
 
 -- Insertion 
 
@@ -66,16 +76,16 @@ CREATE TABLE IF NOT EXISTS DataType (
 
 CREATE TABLE IF NOT EXISTS InsertionProgress (
   InsertionProgressId SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  StartDate DATE NOT NULL,
-  EndDate DATE NOT NULL,
+  StartDate DATE,
+  EndDate DATE,
   SetSize SMALLINT UNSIGNED NOT NULL,
   SetIndex SMALLINT UNSIGNED NOT NULL,
   DataTypeId SMALLINT UNSIGNED NOT NULL,
   PRIMARY KEY (InsertionProgressId),
   FOREIGN KEY (DataTypeId) REFERENCES DataType(DataTypeId),
-  CONSTRAINT uc_InsertionProgressInfo UNIQUE (StartDate,EndDate,SetSize,SetIndex,DataTypeId));
+  UNIQUE (DataTypeId));
 
 -- Initial Data
-INSERT INTO DataType (DataTypeName) VALUES ('StockData'),('StockDividend');
+INSERT INTO DataType (DataTypeName) VALUES ('StockData'),('StockDividend'),('StockMetaData');
 
 -- source ~/git/security/sql/security_data.sql

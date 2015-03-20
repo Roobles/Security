@@ -12,13 +12,6 @@
     return sprintf ("%s", $tableName);
   }
 
-  function SINGLE ($results)
-  {
-    return (count ($results) > 0)
-      ? $results[0]
-      : false;
-  }
-
   function SINGLE_OR_DIE ($results, $errorMessage)
   {
     if (!($single = SINGLE ($results)))
@@ -27,20 +20,22 @@
     return $single;
   }
 
-  function SELECT ($contents, $from, $where = "", $joinFrom = "", $joinOn = "")
+  function SELECT ($contents, $from, $where = "", $orderBy = "", $count = "", $skip = "")
   {
     Expect ($from, "Must provide a table to select from.");
     $selectStatement = sprintf ("SELECT %s FROM %s", $contents, TableFormat ($from));
 
-    if (!IsNullOrEmpty ($joinFrom))
-    {
-      Expect ($joinOn, "Must provide a value to join on.");
-      $selectStatement = sprintf ("%s JOIN %s ON %s.%s = %s.%s",
-        $selectStatement, TableFormat ($joinFrom), $from, $joinOn, $joinFrom, $joinOn);
-    }
-    
     if (!IsNullOrEmpty ($where))
       $selectStatement = sprintf ("%s WHERE %s", $selectStatement, $where);
+
+    if (!IsNullOrEmpty ($orderBy))
+      $selectStatement = sprintf ("%s ORDER BY %s", $selectStatement, $orderBy);
+
+    if (!IsNullOrEmpty ($count))
+    {
+      $limitPrefix = IsNullOrEmpty ($skip) ? "" : sprintf ("%d, ", $skip);
+      $selectStatement = sprintf ("%s LIMIT %s%s", $selectStatement, $limitPrefix, $count);
+    }
 
     return SqlCmd ($selectStatement);
   }
