@@ -16,6 +16,9 @@
   define ("YH_HIGH", "High");
   define ("YH_LOW", "Low");
   define ("YH_CLOSE", "Close");
+
+  // Defaults
+  define ("DEFAULT_DIVIDEND_RETRY", 10);
 ?>
 <?php // Class
   class YahooFinance
@@ -35,8 +38,9 @@
       $contents = sprintf ("%s,%s,%s", YM_SYMBOL, YM_START, YM_END);
       $from = $this->FinanceLibraries[METADATA];
       $where = sprintf ("%s = \"%s\"", YM_SYMBOL, $symbol);
+      $expected = array (YM_SYMBOL, YM_START, YM_END);
   
-      $response = YahooSelect ($from, $where, $contents);
+      $response = YahooSelect ($from, $where, $contents, $expected);
       return Single ($response);
     }
 
@@ -44,20 +48,32 @@
     {
       $contents = sprintf ("%s,%s,%s,%s,%s", YH_SYMBOL, YH_DATE, YH_HIGH, YH_LOW, YH_CLOSE);
       $from = $this->FinanceLibraries[HISTORICAL];
+      $expected = array (YH_SYMBOL, YH_DATE, YH_HIGH, YH_LOW, YH_CLOSE);
 
-      return $this->GetHistory ($symbol, $startDate, $endDate, $contents, $from);
+      return $this->GetHistory ($symbol, $startDate, $endDate, $contents, $from, $expected);
     }
 
-    public function GetDividendHistory ($symbol, $startDate, $endDate = NULL)
+    public function GetDividendHistory ($symbol, $startDate, $endDate = NULL, $retries = DEFAULT_DIVIDEND_RETRY)
     {
       $contents = "*";
       $from = $this->FinanceLibraries[DIVIDENDS];
+      
+      // There is no way to determine whether this method succeeds or not.  So it must be retried.
+      $attempts = 0;
+      while ($attempts < $retries)
+      {
+        $result = $this->GetHistory ($symbol, $startDate, $endDate, $contents, $from);
+        if (reset ($result) != NULL)
+          return $result;
 
-      return $this->GetHistory ($symbol, $startDate, $endDate, $contents, $from);
+        ++$attempts;
+      }
+
+      return false;
     }
 
     // Private Methods
-    private function GetHistory ($symbol, $startDate, $endDate, $contents, $from)
+    private function GetHistory ($symbol, $startDate, $endDate, $contents, $from, $expected = NULL)
     {
       Expect ($symbol, "Must provide a stock symbol to look up.");
       Expect ($startDate, "Must provide a start date.");
@@ -70,7 +86,7 @@
    
       $where = sprintf ("symbol = \"%s\" AND startDate = \"%s\" AND endDate = \"%s\"", $symbol, DateFormat ($startDate), DateFormat ($endDate));
 
-      $response = YahooSelect ($from, $where, $contents);   
+      $response = YahooSelect ($from, $where, $contents, $expected);   
       return $response;
     }
   }

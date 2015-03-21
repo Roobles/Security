@@ -157,6 +157,9 @@
 
   function Single ($results)
   {
+    if (!is_array ($results))
+      return false;
+
     return (count ($results) > 0)
       ? reset ($results)
       : false;

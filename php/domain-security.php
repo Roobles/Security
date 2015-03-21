@@ -62,10 +62,6 @@
     private function UpdateTableRange ($updateSources, $updateFunction, $dataType, $page, $count)
     {
 
-      $attempts = 30;
-      $bottomRange = $page * $count;
-      $topRange = $bottomRange + $count;
-
       $message = sprintf ("Updating '%s' range (%d - %d)", $dataType, $bottomRange, $topRange);
       Message ($message);
 
@@ -188,8 +184,4 @@
       return (is_array ($dividends) && count ($dividends) > 0);
     }
   }
-?>
-<?php // Stupid lil' tests
-  $sec = new Security ();
-  $sec->Test ();
 ?>
