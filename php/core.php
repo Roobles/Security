@@ -90,7 +90,12 @@
       return $dateObj;
 
     if (is_string ($dateObj))
-      return new DateTime ($dateObj);
+      return new DateTime (DateSanitize ($dateObj));
+  }
+
+  function DateSanitize ($dateStr)
+  {
+    return str_replace ("NaN", "01", $dateStr);
   }
 
   function DateGetToday ()

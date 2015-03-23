@@ -6,7 +6,7 @@
 <?php // Constants
   // TODO: Consider making these parameters to the constructor.
   define ("YEARS_BACK", 5);
-  define ("UPDATE_BLOCK_SIZE", 10);
+  define ("UPDATE_BLOCK_SIZE", 5);
 
   // Data Access Layers
   define ("SECURITY_DAL", "SecurityDAL");
@@ -61,39 +61,26 @@
 
     private function UpdateTableRange ($updateSources, $updateFunction, $dataType, $page, $count)
     {
-
+      $bottomRange = $page * $count;
+      $topRange = $bottomRange + $count;
       $message = sprintf ("Updating '%s' range (%d - %d)", $dataType, $bottomRange, $topRange);
       Message ($message);
 
-      $priorSource = NULL;
       foreach ($updateSources as $updateSource)
-      {
-        $result = $this->AttemptMethod ($updateFunction, $updateSource, $attempts);
-        if (!$result && ($priorSource == NULL || !$this->AttemptMethod ($updateFunction, $priorSource, $attempts)))
-          Error (sprintf ("Critical failure updating '%s'.  Try again at another time.", $dataType));
-
-        $priorSource = $updateSource;
-      }
+        $this->AttemptMethod ($updateFunction, $updateSource);
     }
 
-    private function AttemptMethod ($methodName, $methodParam, $maxAttempts = 20, $sleep = 1)
+    private function AttemptMethod ($methodName, $methodParam)
     {
-      $result = NULL;
-      for ($attempts=0; $attempts<$maxAttempts; $attempts++)
+      try
       {
-        try
-        {
-          sleep ($sleep);
-          $this->$methodName($methodParam);
-          return true;
-        }
-        catch (Exception $e)
-        { 
-          $errMessage = sprintf ("Call to '%s' failed, with error message: %s\nRetrying (Attempt %d of %d).", $methodName, $e->getMessage (), $attempts, $maxAttempts);
-          Warn ($errMessage);
-        }
+        $this->$methodName($methodParam);
       }
-      return false;
+      catch (Exception $e)
+      { 
+        $errMessage = sprintf ("Call to '%s' failed, with error message: %s", $methodName, $e->getMessage ());
+        Error ($errMessage);
+      }
     }
 
     // Reads in old values, if existing, and creates 
@@ -160,16 +147,21 @@
       // Delete old existing data.
       $this->SecurityDAL->Meta->DeleteByForeign (PK_STOCK, $stockId);
   
-      // Retrieve yahoo object.
-      $yahooMeta = $this->YahooFinance->GetMetaData ($symbol);
+      // Retrieve yahoo object.  Or fail out.
+      if (!($yahooMeta = $this->YahooFinance->GetMetaData ($symbol)))
+      {
+        Warn (sprintf ("Could not retrieve meta data for stock '%s'", $symbol));
+        return false;
+      }
 
-      // Parse yahoo object.
+      // Parse retrieved meta data object.
       $startDate = DateFormat (ValueGetCritical ($yahooMeta, YM_START, false));
       $endDate = DateFormat (ValueGetCritical ($yahooMeta, YM_END, false));
       $isAlive = $this->IsAlive ($endDate);
       $hasDividends = $this->HasDividends ($symbol, $startDate);
 
       $this->SecurityDAL->Meta->Insert ($stockId, $startDate, $isAlive, $hasDividends);
+      return true;
     }
 
     private function IsAlive ($endDate)

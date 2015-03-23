@@ -8,7 +8,7 @@
   define ("YAHOO_API_EXCEPTION", "Yahoo API had an internal failure.");
   define ("YAHOO_UNKNOWN_EXCEPTION", "An unknown yahoo API Error occured.");
 
-  define ("DEFAULT_MAX_RETRIES", 50);
+  define ("DEFAULT_MAX_RETRIES", 20);
 ?>
 <?php // Globals
     $LastYahooError = NULL;
@@ -33,7 +33,7 @@
 
   function ExecYahooQuery ($queryStr, $expectedResults, $sleepDuration)
   {
-    sleep ($sleepDuration);
+    usleep (500000);
     $response = file_get_contents ($queryStr);
     
     return ParseYahooQuery ($response, $expectedResults);
