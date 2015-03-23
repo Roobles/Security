@@ -37,33 +37,58 @@
       //$stock = $this->SecurityDAL->Stock->GetByPrimary (210);
       //$this->UpdateMetaDataSingle ($stock);
 
-      $dataType = "StockMetaData";
-      $updateSource = $this->SecurityDAL->Stock;
-      $updateFunction = "UpdateMetaDataSingle";
-      $this->UpdateTable ($dataType, false, $updateSource, $updateFunction);
+      $this->RepairMetaData ();
     }
 
-    private function UpdateTable ($dataType, $hasDates, $updateSourceObj, $updateFunction)
+    public function RepairMetaData ()
     {
-      $page; $count; $startDate; $endDate; $dataTypeId;
+      $where = "Founded IS NULL";
+      $this->UpdateMetaDataBase ($where);
+    }
+
+    public function UpdateMetaData ()
+    {
+      $this->UpdateMetaDataBase ("");
+    }
+
+    // Private Methods
+    private function UpdateMetaDataBase ($where = "")
+    {
+      $dataType = TABLE_METADATA;
+      $updateSource = $this->SecurityDAL->Stock;
+      $updateFunction = "UpdateMetaDataSingle";
+
+      $this->UpdateTable ($dataType, false, $updateSource, $updateFunction, $where);
+    }
+
+    private function UpdateTable ($dataType, $hasDates, $updateSourceObj, $updateFunction, $where = "")
+    {
+      $page; $count; $startDate; $endDate; $dataTypeId; $sourceCount;
       $progress = $this->SecurityDAL->Progress;
 
       Message (sprintf ("Updating table '%s'.", $dataType));
-      $this->RecoverUpdateParameters ($dataType, $hasDates, $page, $count, $startDate, $endDate, $dataTypeId);
+      $this->RecoverUpdateParameters ($dataType, $hasDates, $page, $count, $startDate, $endDate, $dataTypeId, $where);
+      $sourceCount = $updateSourceObj->GetCount ($where);
 
       // Main Loop.
-      while ((($updateSources = $updateSourceObj->GetPaged ($page, $count)) && count ($updateSources) > 0))
+      while ((($updateSources = $updateSourceObj->GetPaged ($page, $count, $where)) && count ($updateSources) > 0))
       {
-        $this->UpdateTableRange ($updateSources, $updateFunction, $dataType, $page, $count);
+        $this->UpdateTableRange ($updateSources, $updateFunction, $dataType, $page, $count, $sourceCount);
         $progress->UpdateIndex ($dataTypeId, ++$page);
       }
+
+      Message (sprintf ("Finished updating table '%s'.", $dataType));
+      $progress->DeleteByDataTypeId ($dataTypeId);
     }
 
-    private function UpdateTableRange ($updateSources, $updateFunction, $dataType, $page, $count)
+    private function UpdateTableRange ($updateSources, $updateFunction, $dataType, $page, $count, $sourceCount)
     {
       $bottomRange = $page * $count;
       $topRange = $bottomRange + $count;
-      $message = sprintf ("Updating '%s' range (%d - %d)", $dataType, $bottomRange, $topRange);
+      $totalItterations = $sourceCount / $count + (($sourceCount % $count) > 0 ? 1 : 0);
+      $currentItteration = $page + 1;
+
+      $message = sprintf ("Updating '%s' range (%d - %d) itteration (%d of %d).", $dataType, $bottomRange, $topRange, $currentItteration, $totalItterations);
       Message ($message);
 
       foreach ($updateSources as $updateSource)
@@ -84,7 +109,7 @@
     }
 
     // Reads in old values, if existing, and creates 
-    private function RecoverUpdateParameters ($dataType, $hasDates, &$page, &$count, &$startDate, &$endDate, &$dataTypeId)
+    private function RecoverUpdateParameters ($dataType, $hasDates, &$page, &$count, &$startDate, &$endDate, &$dataTypeId, &$where)
     {
       $page = 0;
       $count = UPDATE_BLOCK_SIZE;
@@ -101,18 +126,19 @@
       {
         $page = ValueGetCritical ($existingProgress, P_INDEX);
         $count = ValueGetCritical ($existingProgress, P_SIZE);
+        $where = ValueGetCritical ($existingProgress, P_WHERE);
 
         if ($hasDates)
         {
           $startDate = ValueGetCritical ($existingProgress, P_START_DATE);
           $endDate= ValueGetCritical ($existingProgress, P_END_DATE);
-        }
+         }
 
         Message (sprintf ("Recovering prior update, starting at range %d.", $page * $count));
         $progress->DeleteByDataTypeId ($dataTypeId);
       }
 
-      $progress->Insert ($dataTypeId, $count, $page, $startDate, $endDate);
+      $progress->Insert ($dataTypeId, $count, $page, $startDate, $endDate, $where);
     }
 
     private function GetStartDateForDataType ($dataType)

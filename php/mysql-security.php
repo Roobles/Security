@@ -13,6 +13,9 @@
   define ("TABLE_DIVIDEND", "StockDividend");
   define ("TABLE_METADATA", "StockMetaData");
 
+  // Custom Fields
+  define ("FIELD_COUNT", "Count");
+
   // Primary Keys
   define ("PK_CATEGORY", "CategoryId");
   define ("PK_DATATYPE", "DataTypeId");
@@ -30,6 +33,7 @@
   define ("P_END_DATE", "EndDate");
   define ("P_SIZE", "SetSize");
   define ("P_INDEX", "SetIndex");
+  define ("P_WHERE", "WhereClause");
 
   // Default Values
   define ("DEFAULT_PAGE_COUNT", 100);
@@ -74,6 +78,15 @@
       $orderBy = $this->GetPrimaryKey ();
     
       return $this->Get ($where, $orderBy, $count, $skip);
+    }
+
+    public function GetCount ($where = "")
+    {
+      $from = $this->GetFrom ();
+      $contents = sprintf ("COUNT(*) as %s", FIELD_COUNT);
+      $response = Single (SELECT ($contents, $from, $where));
+
+      return ValueGetCritical ($response, FIELD_COUNT);
     }
 
     public function DeleteByPrimary ($key)
@@ -157,25 +170,26 @@
 
     protected function GetContents ()
     {
-      return sprintf ("InsertionProgressId,StartDate,EndDate,SetSize,SetIndex,DataTypeName,%s.%s", TABLE_PROGRESS, PK_DATATYPE);
+      return sprintf ("%s,%s,%s,%s,%s,%s,%s,%s.%s", PK_PROGRESS, P_START, P_END, 
+        P_SIZE, P_INDEX, DT_NAME, P_WHERE, TABLE_PROGRESS, PK_DATATYPE);
     }
 
     public function GetByDataType ($dataType)
     {
       Expect ($dataType, "Must provide a data type to search for.");
-      $where = sprintf ("DataTypeName = '%s'", $dataType);
+      $where = sprintf ("%s = '%s'", DT_NAME, $dataType);
 
       return $this->GetSingle ($where);
     }
 
-    public function Insert ($dataTypeId, $setSize, $setIndex, $startDate = NULL, $endDate = NULL)
+    public function Insert ($dataTypeId, $setSize, $setIndex, $startDate = NULL, $endDate = NULL, $where = "")
     {
       ExpectId ($dataTypeId);
       ExpectUint ($setSize);
       ExpectUint ($setIndex);
 
-      $columns = sprintf ("(%s,%s,%s,%s,%s)", P_START_DATE, P_END_DATE, P_SIZE, P_INDEX, PK_DATATYPE);
-      $values = sprintf ("(%s,%s,%d,%d,%d)", DateSqlFormat ($startDate), DateSqlFormat ($endDate), $setSize, $setIndex, $dataTypeId);
+      $columns = sprintf ("(%s,%s,%s,%s,%s,%s)", P_START_DATE, P_END_DATE, P_SIZE, P_INDEX, PK_DATATYPE, P_WHERE);
+      $values = sprintf ("(%s,%s,%d,%d,%d,'%s')", DateSqlFormat ($startDate), DateSqlFormat ($endDate), $setSize, $setIndex, $dataTypeId, $where);
       
       $this->InsertBase ($columns, $values);
     }
