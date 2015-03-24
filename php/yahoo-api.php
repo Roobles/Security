@@ -13,11 +13,26 @@
 <?php // Globals
     $LastYahooError = NULL;
     $CriticalErrors = array (YAHOO_CONNECTION_EXCEPTION, YAHOO_UNKNOWN_EXCEPTION);
+    $MaxRetries = DEFAULT_MAX_RETRIES;
 ?>
 <?php
   function YahooEscape ($contents)
   {
     return urlencode ($contents);
+  }
+
+  function GetYahooMaxRetries ()
+  {
+    global $MaxRetries;
+    return $MaxRetries;
+  }
+
+  function SetYahooMaxRetries ($max)
+  {
+    global $MaxRetries;
+    ExpectId ($max);
+
+    $MaxRetries = $max;
   }
 
   function BuildYahooQuery ($search, $format, $env, $diag = true)
@@ -31,7 +46,7 @@
     return sprintf ("%s/yql?q=%s&env=%s&format=%s&diagnostics=%s", YAHOO_API_URL, YahooEscape ($search), YahooEscape ($env), YahooEscape ($format), YahooEscape ($diag ? "true" : "false"));
   }
 
-  function ExecYahooQuery ($queryStr, $expectedResults, $sleepDuration)
+  function ExecYahooQuery ($queryStr, $expectedResults)
   {
     usleep (500000);
     $response = file_get_contents ($queryStr);
@@ -39,13 +54,14 @@
     return ParseYahooQuery ($response, $expectedResults);
   }
 
-  function RunYahooQuery ($queryStr, $expectedResults, $maxRetries = DEFAULT_MAX_RETRIES, $sleepDuration = 1)
+  function RunYahooQuery ($queryStr, $expectedResults)
   {
     // Yahoo API is not reliable.  A great deal of error handling and retrying must be done.
     Debug (sprintf ("Running Query String: %s", $queryStr));
+    $maxRetries = GetYahooMaxRetries ();
 
     $attempts = 0;
-    while (!($result = ExecYahooQuery ($queryStr, $expectedResults, $sleepDuration)) && $attempts < $maxRetries)
+    while (!($result = ExecYahooQuery ($queryStr, $expectedResults)) && $attempts < $maxRetries)
     {
       Warn (sprintf ("Yahoo query failed attempt: (%d of %d).  Reason: %s", $attempts+1, $maxRetries, GetYahooError ()));
       ++$attempts;

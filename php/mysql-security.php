@@ -35,6 +35,25 @@
   define ("P_INDEX", "SetIndex");
   define ("P_WHERE", "WhereClause");
 
+  define ("M_FOUNDED", "Founded");
+  define ("M_ALIVE", "IsAlive");
+  define ("M_DIVIDENDS", "HasDividends");
+
+  define ("DATA_DATE", "StockDate");
+  define ("DATA_HIGH", "High");
+  define ("DATA_LOW", "Low");
+  define ("DATA_CLOSE", "Close");
+
+  define ("STOCK_TICKER", "Ticker");
+  define ("STOCK_NAME", "StockName");
+
+  define ("E_EXCHANGE_NAME", "ExchangeName");
+
+  define ("C_CATEGORY_NAME", "CategoryName");
+
+  define ("D_DIVIDEND_DATE", "DividendDate");
+  define ("D_DIVIDEND_PRICE", "DividendPrice");
+
   // Default Values
   define ("DEFAULT_PAGE_COUNT", 100);
   define ("DEFAULT_PAGE", 0);
@@ -115,6 +134,39 @@
       return Single ($this->Get ($where, $orderBy, $count, $skip));
     }
 
+    protected function GetAfterDate ($dateName, $dateValue)
+    {
+      Expect ($dateName, "Must specify the date field to search by.");
+      Expect ($dateValue, "Must specify the date to search after.");
+
+      $where = sprintf ("%s > '%s'", $dateName, DateFormat ($dateValue)); 
+      $orderBy = $dateName;
+
+      return $this->Get ($where, $orderBy);
+    }
+
+    protected function GetLatestDateBase ($dateName)
+    {
+      Expect ($dateName, "Must provide a date name.");
+      $where = "";
+      $orderBy = sprintf ("%s DESC", $dateName);
+      $count = 1;
+
+      if (!($latestDividend = $this->GetSingle($where, $orderBy, $count)))
+        return false;
+
+      return ValueGetCritical ($latestDividend, $dateName);
+    }
+
+    protected function DeleteByDate ($dateName, $dateValue)
+    {
+      Expect ($dateName, "Must specify the date field to search by.");
+      Expect ($dateValue, "Must specify the date to delete after.");
+
+      $where = sprintf ("%s > '%s'", $dateName, $dateValue);
+      $this->DeleteBase ($where);
+    }
+
     protected function UpdateBase ($modify, $where = "")
     {
       $from = $this->GetTableName ();
@@ -170,7 +222,7 @@
 
     protected function GetContents ()
     {
-      return sprintf ("%s,%s,%s,%s,%s,%s,%s,%s.%s", PK_PROGRESS, P_START, P_END, 
+      return sprintf ("%s,%s,%s,%s,%s,%s,%s,%s.%s", PK_PROGRESS, P_START_DATE, P_END_DATE, 
         P_SIZE, P_INDEX, DT_NAME, P_WHERE, TABLE_PROGRESS, PK_DATATYPE);
     }
 
@@ -227,7 +279,13 @@
 
     protected function GetContents ()
     {
-      return sprintf ("%s.%s,Ticker,StockName,ExchangeName,CategoryName,Founded,IsAlive,HasDividends", TABLE_STOCK, PK_STOCK);
+      return sprintf ("%s.%s,%s,%s,%s,%s,%s,%s,%s", TABLE_STOCK, PK_STOCK, STOCK_TICKER, STOCK_NAME, 
+        E_EXCHANGE_NAME, C_CATEGORY_NAME, M_FOUNDED, M_ALIVE, M_DIVIDENDS);
+    }
+
+    public function GetNewerThan ($founded)
+    {
+      return $this->GetAfterDate (M_FOUNDED, $founded);
     }
   }
 
@@ -235,12 +293,68 @@
   {
     protected function GetTableName () { return TABLE_DATA; }
     protected function GetPrimaryKey () { return PK_DATA; }
+
+    public function GetNewerThan ($date)
+    {
+      return $this->GetAfterDate (DATA_DATE, $date);
+    }
+
+    public function GetLatestDate ()
+    {
+      return $this->GetLatestDateBase (DATA_DATE);
+    }
+
+    public function DeleteAfter ($date)
+    {
+      return $this->DeleteByDate (DATA_DATE, $date);
+    }
+
+    public function Insert ($stockId, $date, $high, $low, $close)
+    {
+      ExpectId ($stockId);
+      ExpectDate ($date);
+      ExpectNumeric ($high);
+      ExpectNumeric ($low);
+      ExpectNumeric ($close);
+
+      $columns = sprintf ("(%s,%s,%s,%s,%s)", PK_STOCK, DATA_DATE, DATA_HIGH, DATA_LOW, DATA_CLOSE);
+      $values = sprintf ("(%d,'%s',%f,%f,%f)");
+
+      return $this->InsertBase ($columns, $values);
+    }
   }
 
   class SecurityDividend extends SecurityTable
   {
     protected function GetTableName () { return TABLE_DIVIDEND; }
     protected function GetPrimaryKey () { return PK_DIVIDEND; }
+
+    public function GetNewerThan ($date)
+    {
+      return $this->GetAfterDate (D_DIVIDEND_DATE, $date);
+    }
+
+    public function GetLatestDate ()
+    {
+      return $this->GetLatestDateBase (D_DIVIDEND_DATE);
+    }
+
+    public function DeleteAfter ($date)
+    {
+      return $this->DeleteByDate (D_DIVIDEND_DATE, $date);
+    }
+
+    public function Insert ($stockId, $date, $dividend)
+    {
+      ExpectId ($stockId);
+      ExpectDate ($date);
+      ExpectNumeric ($dividend);
+
+      $columns = sprintf ("(%s,%s,%s)", PK_STOCK, D_DIVIDEND_DATE, D_DIVIDEND_PRICE);
+      $values = sprintf ("(%d,'%s',%f)", $stockId, $date, $dividend);
+
+      $this->InsertBase ($columns, $values);
+    }
   }
 
   class SecurityMeta extends SecurityTable
@@ -255,7 +369,7 @@
       ExpectBool ($isAlive);
       ExpectBool ($hasDividends);
 
-      $columns = "(StockId,Founded,IsAlive,HasDividends)";
+      $columns = sprintf ("(%s,%s,%s,%s)", PK_STOCK, M_FOUNDED, M_ALIVE, M_DIVIDENDS);
       $values = sprintf ("(%d,'%s',%s,%s)", $stockId, DateFormat ($founded), BoolFormat ($isAlive), BoolFormat ($hasDividends));
 
       $this->InsertBase ($columns, $values);

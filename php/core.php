@@ -68,6 +68,12 @@
       Error ("Expected a type of boolean.", $code);
   }
 
+  function ExpectNumeric ($value, $code = 1)
+  {
+    if (!is_numeric ($value))
+      Error ("Expected a numeric type.", $code);
+  }
+
   function ExpectObject ($value, $code = 1)
   {
     if (!is_object ($value))

@@ -34,16 +34,34 @@
     // Public Methods
     public function Test()
     {
+      $security = $this->SecurityDAL;
+      $yahoo = $this->YahooFinance;
       //$stock = $this->SecurityDAL->Stock->GetByPrimary (210);
       //$this->UpdateMetaDataSingle ($stock);
 
-      $this->RepairMetaData ();
+      //$this->UpdateMetaData ();
+      $this->UpdateDividends ();
+    }
+
+    public function UpdateDividends ()
+    {
+      $dataType = TABLE_DIVIDEND;
+      $updateSource = $this->SecurityDAL->Stock;
+      $updateFunction = "UpdateDividendSingle";
+      $where = sprintf ("%s = 1", M_DIVIDENDS);
+
+      $this->UpdateTable ($dataType, true, $updateSource, $updateFunction, $where);
     }
 
     public function RepairMetaData ()
     {
       $where = "Founded IS NULL";
+      $repairRetries = 8;
+      $originalRetries = GetYahooMaxRetries ();
+
+      SetYahooMaxRetries ($repairRetries);
       $this->UpdateMetaDataBase ($where);
+      SetYahooMaxRetries ($originalRetries);
     }
 
     public function UpdateMetaData ()
@@ -61,6 +79,7 @@
       $this->UpdateTable ($dataType, false, $updateSource, $updateFunction, $where);
     }
 
+    // Common Private Methods
     private function UpdateTable ($dataType, $hasDates, $updateSourceObj, $updateFunction, $where = "")
     {
       $page; $count; $startDate; $endDate; $dataTypeId; $sourceCount;
@@ -73,7 +92,7 @@
       // Main Loop.
       while ((($updateSources = $updateSourceObj->GetPaged ($page, $count, $where)) && count ($updateSources) > 0))
       {
-        $this->UpdateTableRange ($updateSources, $updateFunction, $dataType, $page, $count, $sourceCount);
+        $this->UpdateTableRange ($updateSources, $updateFunction, $dataType, $page, $count, $sourceCount, $startDate, $endDate);
         $progress->UpdateIndex ($dataTypeId, ++$page);
       }
 
@@ -81,7 +100,7 @@
       $progress->DeleteByDataTypeId ($dataTypeId);
     }
 
-    private function UpdateTableRange ($updateSources, $updateFunction, $dataType, $page, $count, $sourceCount)
+    private function UpdateTableRange ($updateSources, $updateFunction, $dataType, $page, $count, $sourceCount, $startDate, $endDate)
     {
       $bottomRange = $page * $count;
       $topRange = $bottomRange + $count;
@@ -92,14 +111,14 @@
       Message ($message);
 
       foreach ($updateSources as $updateSource)
-        $this->AttemptMethod ($updateFunction, $updateSource);
+        $this->AttemptMethod ($updateFunction, $updateSource, $startDate, $endDate);
     }
 
-    private function AttemptMethod ($methodName, $methodParam)
+    private function AttemptMethod ($methodName, $methodParam, $startDate, $endDate)
     {
       try
       {
-        $this->$methodName($methodParam);
+        $this->$methodName($methodParam, $startDate, $endDate);
       }
       catch (Exception $e)
       { 
@@ -113,7 +132,7 @@
     {
       $page = 0;
       $count = UPDATE_BLOCK_SIZE;
-      $startDate = $hasDates ? GetStartDateForDataType ($dataType): NULL;
+      $startDate = $hasDates ? $this->GetStartDateForDataType ($dataType): NULL;
       $endDate = $hasDates ? DateFormat (DateGetToday ()) : NULL;
       $progress = $this->SecurityDAL->Progress;
 
@@ -143,11 +162,21 @@
 
     private function GetStartDateForDataType ($dataType)
     {
-      // TODO: Implement this.
-      return DateFormat (DateGetToday ());
+
+      $defaultStart = ($dataType == TABLE_DIVIDEND)
+        ? DateFormat ("01/01/1960")
+        : DateGetToday ();
+
+      $targetObject = ($dataType == TABLE_DIVIDEND)
+        ? $this->SecurityDAL->Dividend
+        : $this->SecurityDAL->Data;
+
+      if (!($startDate = $targetObject->GetLatestDate ()))
+        $startDate = $defaultStart;
+
+      return $startDate;
     }
 
-    // Private Methods
     private function SetValidDataTypes ()
     {
       $this->ValidDataTypes = array ();
@@ -165,10 +194,34 @@
       return false;
     }
     
-    private function UpdateMetaDataSingle ($stockObj)
+    // Domain Specific Methods
+    private function UpdateDividendSingle ($stockObj, $startDate, $endDate)
     {
       $stockId = ValueGetCritical ($stockObj, PK_STOCK);
-      $symbol = ValueGetCritical ($stockObj, "Ticker");
+      $symbol = ValueGetCritical ($stockObj, STOCK_TICKER);
+      $divid = $this->SecurityDAL->Dividend;
+
+      if (!($results = $this->YahooFinance->GetDividendHistory ($symbol, $startDate, $endDate)))
+      {
+        Warn (sprintf ("Could not retrieve dividend information for stock %s.", $symbol));
+        return false;
+      }
+
+      foreach ($results as $result)
+      {
+        $dividend = ValueGetCritical ($result, YD_DIVIDENDS);
+        $date = ValueGetCritical ($result, YH_DATE);
+
+        $divid->Insert ($stockId, $date, $dividend);
+      }
+      
+      return true;
+    }
+
+    private function UpdateMetaDataSingle ($stockObj, $startDate, $endDate)
+    {
+      $stockId = ValueGetCritical ($stockObj, PK_STOCK);
+      $symbol = ValueGetCritical ($stockObj, STOCK_TICKER);
 
       // Delete old existing data.
       $this->SecurityDAL->Meta->DeleteByForeign (PK_STOCK, $stockId);

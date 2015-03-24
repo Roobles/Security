@@ -11,14 +11,16 @@
   define ("YM_START", "start");
   define ("YM_END", "end");
 
+  define ("YS_START", "startDate");
+  define ("YS_END", "endDate");
+
+  define ("YD_DIVIDENDS", "Dividends");
+
   define ("YH_SYMBOL", "Symbol");
   define ("YH_DATE", "Date");
   define ("YH_HIGH", "High");
   define ("YH_LOW", "Low");
   define ("YH_CLOSE", "Close");
-
-  // Defaults
-  define ("DEFAULT_DIVIDEND_RETRY", 10);
 ?>
 <?php // Class
   class YahooFinance
@@ -53,23 +55,12 @@
       return $this->GetHistory ($symbol, $startDate, $endDate, $contents, $from, $expected);
     }
 
-    public function GetDividendHistory ($symbol, $startDate, $endDate = NULL, $retries = DEFAULT_DIVIDEND_RETRY)
+    public function GetDividendHistory ($symbol, $startDate, $endDate = NULL)
     {
       $contents = "*";
       $from = $this->FinanceLibraries[DIVIDENDS];
-      
-      // There is no way to determine whether this method succeeds or not.  So it must be retried.
-      $attempts = 0;
-      while ($attempts < $retries)
-      {
-        $result = $this->GetHistory ($symbol, $startDate, $endDate, $contents, $from);
-        if (reset ($result) != NULL)
-          return $result;
-
-        ++$attempts;
-      }
-
-      return false;
+      $expected = array (YH_SYMBOL, YH_DATE, YD_DIVIDENDS);
+      return $this->GetHistory ($symbol, $startDate, $endDate, $contents, $from, $expected);
     }
 
     // Private Methods
@@ -84,7 +75,11 @@
       if (DateCompare ($endDate, $startDate) < 0)
         Error ("Attempted to retrieve history with a start date later than the end date.");
    
-      $where = sprintf ("symbol = \"%s\" AND startDate = \"%s\" AND endDate = \"%s\"", $symbol, DateFormat ($startDate), DateFormat ($endDate));
+      // TODO: Determine whether all API will be using the lower or upper case versions of fields.
+      $where = sprintf ("%s = \"%s\" AND %s = \"%s\" AND %s = \"%s\"", 
+        YM_SYMBOL, $symbol, 
+        YS_START, DateFormat ($startDate), 
+        YS_END, DateFormat ($endDate));
 
       $response = YahooSelect ($from, $where, $contents, $expected);   
       return $response;
