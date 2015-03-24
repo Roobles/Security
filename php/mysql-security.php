@@ -318,7 +318,7 @@
       ExpectNumeric ($close);
 
       $columns = sprintf ("(%s,%s,%s,%s,%s)", PK_STOCK, DATA_DATE, DATA_HIGH, DATA_LOW, DATA_CLOSE);
-      $values = sprintf ("(%d,'%s',%f,%f,%f)");
+      $values = sprintf ("(%d,'%s',%f,%f,%f)", $stockId, DateFormat ($date), $high, $low, $close);
 
       return $this->InsertBase ($columns, $values);
     }

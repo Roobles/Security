@@ -112,7 +112,7 @@
 
   function YahooQuery ($search, $expectedFields, $format = "json", $env = "store://datatables.org/alltableswithkeys")
   {
-    $queryStr = BuildYahooQuery ($search, $format, $env);
+    $queryStr = BuildYahooQuery ($search, $format, $env, false);
     $result = RunYahooQuery ($queryStr, $expectedFields);
     
     return CheckCritical ($result);

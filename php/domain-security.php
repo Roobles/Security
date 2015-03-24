@@ -40,7 +40,7 @@
       //$this->UpdateMetaDataSingle ($stock);
 
       //$this->UpdateMetaData ();
-      $this->UpdateDividends ();
+      $this->UpdateStocks ();
     }
 
     public function UpdateDividends ()
@@ -49,6 +49,16 @@
       $updateSource = $this->SecurityDAL->Stock;
       $updateFunction = "UpdateDividendSingle";
       $where = sprintf ("%s = 1", M_DIVIDENDS);
+
+      $this->UpdateTable ($dataType, true, $updateSource, $updateFunction, $where);
+    }
+
+    public function UpdateStocks ()
+    {
+      $dataType = TABLE_DATA;
+      $updateSource = $this->SecurityDAL->Stock;
+      $updateFunction = "UpdateStockDataSingle";
+      $where = sprintf ("%s = 1", M_ALIVE);
 
       $this->UpdateTable ($dataType, true, $updateSource, $updateFunction, $where);
     }
@@ -133,7 +143,7 @@
       $page = 0;
       $count = UPDATE_BLOCK_SIZE;
       $startDate = $hasDates ? $this->GetStartDateForDataType ($dataType): NULL;
-      $endDate = $hasDates ? DateFormat (DateGetToday ()) : NULL;
+      $endDate = $hasDates ? $this->GetEndDateForDataType ($dataType, $startDate) : NULL;
       $progress = $this->SecurityDAL->Progress;
 
       // Verify that provided data type is valid.
@@ -165,7 +175,7 @@
 
       $defaultStart = ($dataType == TABLE_DIVIDEND)
         ? DateFormat ("01/01/1960")
-        : DateGetToday ();
+        : DateFormat ("01/01/2010");
 
       $targetObject = ($dataType == TABLE_DIVIDEND)
         ? $this->SecurityDAL->Dividend
@@ -175,6 +185,11 @@
         $startDate = $defaultStart;
 
       return $startDate;
+    }
+
+    private function GetEndDateForDataType ($dataType, $startDate)
+    {
+      return DateFormat (DateGetToday ());
     }
 
     private function SetValidDataTypes ()
@@ -215,6 +230,31 @@
         $divid->Insert ($stockId, $date, $dividend);
       }
       
+      return true;
+    }
+
+    private function UpdateStockDataSingle ($stockObj, $startDate, $endDate)
+    {
+      $stockId = ValueGetCritical ($stockObj, PK_STOCK);
+      $symbol = ValueGetCritical ($stockObj, STOCK_TICKER);
+      $data = $this->SecurityDAL->Data;
+
+      if (!($results = $this->YahooFinance->GetStockHistory ($symbol, $startDate, $endDate)))
+      {
+        Warn (sprintf ("Could not retrieve history information for stock %s.", $symbol));
+        return false;
+      }
+
+      foreach ($results as $result)
+      {
+        $date = ValueGetCritical ($result, YH_DATE);
+        $high = ValueGetCritical ($result, YH_HIGH);
+        $low = ValueGetCritical ($result, YH_LOW);
+        $close = ValueGetCritical ($result, YH_CLOSE);
+
+        $data->Insert ($stockId, $date, $high, $low, $close);
+      } 
+
       return true;
     }
 
