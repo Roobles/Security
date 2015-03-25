@@ -12,6 +12,7 @@
   define ("TABLE_DATA", "StockData");
   define ("TABLE_DIVIDEND", "StockDividend");
   define ("TABLE_METADATA", "StockMetaData");
+  define ("TABLE_FAILURE", "StockFailure");
 
   // Custom Fields
   define ("FIELD_COUNT", "Count");
@@ -25,6 +26,7 @@
   define ("PK_DATA", "StockDataId");
   define ("PK_DIVIDEND", "StockDividendId");
   define ("PK_METADATA", "StockMetaDataId");
+  define ("PK_FAILURE", "StockFailureId");
 
   //  Fields
   define ("DT_NAME", "DataTypeName");
@@ -53,6 +55,9 @@
 
   define ("D_DIVIDEND_DATE", "DividendDate");
   define ("D_DIVIDEND_PRICE", "DividendPrice");
+
+  define ("F_Start", "FailureStartDate");
+  define ("F_END", "FailureEndDate");
 
   // Default Values
   define ("DEFAULT_PAGE_COUNT", 100);
@@ -139,7 +144,7 @@
       Expect ($dateName, "Must specify the date field to search by.");
       Expect ($dateValue, "Must specify the date to search after.");
 
-      $where = sprintf ("%s > '%s'", $dateName, DateFormat ($dateValue)); 
+      $where = sprintf ("%s > %s", $dateName, DateSqlFormat ($dateValue)); 
       $orderBy = $dateName;
 
       return $this->Get ($where, $orderBy);
@@ -318,7 +323,7 @@
       ExpectNumeric ($close);
 
       $columns = sprintf ("(%s,%s,%s,%s,%s)", PK_STOCK, DATA_DATE, DATA_HIGH, DATA_LOW, DATA_CLOSE);
-      $values = sprintf ("(%d,'%s',%f,%f,%f)", $stockId, DateFormat ($date), $high, $low, $close);
+      $values = sprintf ("(%d,%s,%f,%f,%f)", $stockId, DateSqlFormat ($date), $high, $low, $close);
 
       return $this->InsertBase ($columns, $values);
     }
@@ -370,7 +375,47 @@
       ExpectBool ($hasDividends);
 
       $columns = sprintf ("(%s,%s,%s,%s)", PK_STOCK, M_FOUNDED, M_ALIVE, M_DIVIDENDS);
-      $values = sprintf ("(%d,'%s',%s,%s)", $stockId, DateFormat ($founded), BoolFormat ($isAlive), BoolFormat ($hasDividends));
+      $values = sprintf ("(%d,%s,%s,%s)", $stockId, DateSqlFormat ($founded), BoolFormat ($isAlive), BoolFormat ($hasDividends));
+
+      $this->InsertBase ($columns, $values);
+    }
+  }
+
+  class SecurityFailure extends SecurityTable
+  {
+    protected function GetTableName () { return TABLE_FAILURE; }
+    protected function GetPrimaryKey () { return PK_FAILURE; }
+
+    public function GetByStockId ($stockId)
+    {
+      ExpectId ($stockId);
+    
+      $where = sprintf ("%s = %d", PK_STOCK, $stockId);
+      
+      return $this->Get ($where);
+    }
+
+    public function Delete ($stockId, $dataTypeId, $startDate, $endDate)
+    {
+      ExpectId ($stockId);
+      ExpectId ($dataTypeId);
+
+      $where = sprintf ("%s = %d AND %s = %d AND %s = %s AND %s = %s",
+        PK_STOCK, $stockId,
+        PK_DATATYPE, $dataTypeId,
+        F_START, DateSqlFormat ($startDate),
+        F_End, DateSqlFormat ($endDate));
+
+      $this->DeleteBase ($where);
+    }
+
+    public function Insert ($stockId, $dataTypeId, $startDate, $endDate)
+    {
+      ExpectId ($stockId);
+      ExpectId ($dataTypeId);
+
+      $columns = sprintf ("(%s,%s,%s,%s)", PK_STOCK, PK_DATATYPE, F_START, F_END);
+      $values = sprintf ("(%d,%d,%s,%s)", $stockId, $dataTypeId, DateSqlFormat ($startDate), DateSqlFormat ($endDate));
 
       $this->InsertBase ($columns, $values);
     }
@@ -386,6 +431,7 @@
     public $Data;
     public $Dividend;
     public $Meta;
+    public $Failure;
 
     function __construct()
     {
@@ -397,6 +443,7 @@
       $this->Data = new SecurityData ();
       $this->Dividend = new SecurityDividend ();
       $this->Meta = new SecurityMeta ();
+      $this->Failure = new SecurityFailure ();
     }
   }
 ?>

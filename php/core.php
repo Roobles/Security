@@ -97,6 +97,9 @@
 
     if (is_string ($dateObj))
       return new DateTime (DateSanitize ($dateObj));
+
+    if (is_numeric ($dateObj))
+      return new DateTime (date ('Y-m-d', $dateObj));
   }
 
   function DateSanitize ($dateStr)
@@ -134,6 +137,16 @@
     return $firstVal > $secondVal
       ? 1
       : -1;
+  }
+
+  function DateAddYears ($baseDate, $years)
+  {
+    ExpectUint ($years);
+    $strStr = sprintf ("+ %d year", $years);
+
+    $newDate = strtotime ($strStr, strtotime (DateFormat ($baseDate)));
+
+    return DateGet ($newDate);
   }
 
   // Boolean Methods

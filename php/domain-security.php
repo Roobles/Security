@@ -40,6 +40,7 @@
       //$this->UpdateMetaDataSingle ($stock);
 
       //$this->UpdateMetaData ();
+      SetYahooMaxRetries (50);
       $this->UpdateStocks ();
     }
 
@@ -102,7 +103,7 @@
       // Main Loop.
       while ((($updateSources = $updateSourceObj->GetPaged ($page, $count, $where)) && count ($updateSources) > 0))
       {
-        $this->UpdateTableRange ($updateSources, $updateFunction, $dataType, $page, $count, $sourceCount, $startDate, $endDate);
+        $this->UpdateTableRange ($updateSources, $updateFunction, $dataType, $dataTypeId, $page, $count, $sourceCount, $startDate, $endDate);
         $progress->UpdateIndex ($dataTypeId, ++$page);
       }
 
@@ -110,7 +111,7 @@
       $progress->DeleteByDataTypeId ($dataTypeId);
     }
 
-    private function UpdateTableRange ($updateSources, $updateFunction, $dataType, $page, $count, $sourceCount, $startDate, $endDate)
+    private function UpdateTableRange ($updateSources, $updateFunction, $dataType, $dataTypeId, $page, $count, $sourceCount, $startDate, $endDate)
     {
       $bottomRange = $page * $count;
       $topRange = $bottomRange + $count;
@@ -121,14 +122,15 @@
       Message ($message);
 
       foreach ($updateSources as $updateSource)
-        $this->AttemptMethod ($updateFunction, $updateSource, $startDate, $endDate);
+        $this->AttemptMethod ($updateFunction, $updateSource, $dataTypeId, $startDate, $endDate);
     }
 
-    private function AttemptMethod ($methodName, $methodParam, $startDate, $endDate)
+    private function AttemptMethod ($methodName, $methodParam, $dataTypeId, $startDate, $endDate)
     {
       try
       {
-        $this->$methodName($methodParam, $startDate, $endDate);
+        if (!$this->$methodName($methodParam, $startDate, $endDate))
+          $this->RecordFailure ($methodParam, $dataTypeId, $startDate, $endDate);
       }
       catch (Exception $e)
       { 
@@ -189,7 +191,17 @@
 
     private function GetEndDateForDataType ($dataType, $startDate)
     {
-      return DateFormat (DateGetToday ());
+      if ($dataType == TABLE_DIVIDEND)
+        return DateFormat (DateGetToday ());
+
+      // Assumed that data type is now StockHistory
+      $timeSpanInYears = 1;
+      $endDate = DateAddYears ($startDate, $timeSpanInYears);
+      $today = DateGetToday ();
+
+      return (DateCompare ($endDate, $today) > 0)
+        ? $today
+        : $endDate;
     }
 
     private function SetValidDataTypes ()
@@ -208,6 +220,17 @@
 
       return false;
     }
+
+    private function RecordFailure ($paramObj, $dataTypeId, $startDate, $endDate)
+    {
+      $stockId = ValueGetCritical ($paramObj, PK_STOCK);  
+      
+      $message = sprintf ("Recording failure for Stock Id '%d'.", $stockId);
+      Message ($message);
+      
+      $this->SecurityDAL->Failure->Insert ($stockId, $dataTypeId, $startDate, $endDate);
+    }
+
     
     // Domain Specific Methods
     private function UpdateDividendSingle ($stockObj, $startDate, $endDate)
@@ -237,8 +260,13 @@
     {
       $stockId = ValueGetCritical ($stockObj, PK_STOCK);
       $symbol = ValueGetCritical ($stockObj, STOCK_TICKER);
-      $data = $this->SecurityDAL->Data;
+      $founded = ValueGetCritical ($stockObj, M_FOUNDED);
 
+      $shouldHaveData = DateCompare ($endDate, $founded) > 0;
+      if (!$shouldHaveData)
+        return true;
+
+      $data = $this->SecurityDAL->Data;
       if (!($results = $this->YahooFinance->GetStockHistory ($symbol, $startDate, $endDate)))
       {
         Warn (sprintf ("Could not retrieve history information for stock %s.", $symbol));

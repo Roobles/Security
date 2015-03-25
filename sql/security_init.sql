@@ -1,9 +1,11 @@
 CREATE DATABASE IF NOT EXISTS security;
 USE security;
 
-DROP TABLE IF EXISTS StockData;
+DROP TABLE IF EXISTS StockFailure;
+
+-- DROP TABLE IF EXISTS StockData;
 -- DROP TABLE IF EXISTS StockMetaData;
-DROP TABLE IF EXISTS StockDividend;
+-- DROP TABLE IF EXISTS StockDividend;
 
 -- DROP TABLE IF EXISTS Stock;
 -- DROP TABLE IF EXISTS Category;
@@ -86,6 +88,19 @@ CREATE TABLE IF NOT EXISTS InsertionProgress (
   PRIMARY KEY (InsertionProgressId),
   FOREIGN KEY (DataTypeId) REFERENCES DataType(DataTypeId),
   UNIQUE (DataTypeId));
+
+-- Error Tracking
+
+CREATE TABLE IF NOT EXISTS StockFailure (
+  StockFailureId INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  FailureStartDate DATE,
+  FailureEndDate DATE,
+  StockId SMALLINT UNSIGNED NOT NULL,
+  DataTypeId SMALLINT UNSIGNED NOT NULL,
+  PRIMARY KEY (StockFailureId),
+  FOREIGN KEY (StockId) REFERENCES Stock(StockId),
+  FOREIGN KEY (DataTypeId) REFERENCES DataType(DataTypeId),
+  CONSTRAINT uc_StockFailureEntry UNIQUE (StockId,DataTypeId,FailureStartDate,FailureEndDate));
 
 -- Initial Data
 INSERT INTO DataType (DataTypeName) VALUES ('StockData'),('StockDividend'),('StockMetaData');
