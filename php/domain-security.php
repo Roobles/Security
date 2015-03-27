@@ -36,12 +36,15 @@
     {
       $security = $this->SecurityDAL;
       $yahoo = $this->YahooFinance;
-      //$stock = $this->SecurityDAL->Stock->GetByPrimary (210);
-      //$this->UpdateMetaDataSingle ($stock);
 
-      //$this->UpdateMetaData ();
-      SetYahooMaxRetries (50);
-      $this->UpdateStocks ();
+      $targetDate = "3/01/2015";
+      while (DateCompare ($security->Data->GetLatestDate (), $targetDate) < 0)
+      {
+        Message ("Haven't reached the target, so around we go again.");
+        $this->UpdateStocks ();
+      }
+
+      Warn ("This ride.  Is.  OVER.");
     }
 
     public function UpdateDividends ()

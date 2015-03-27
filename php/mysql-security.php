@@ -56,7 +56,7 @@
   define ("D_DIVIDEND_DATE", "DividendDate");
   define ("D_DIVIDEND_PRICE", "DividendPrice");
 
-  define ("F_Start", "FailureStartDate");
+  define ("F_START", "FailureStartDate");
   define ("F_END", "FailureEndDate");
 
   // Default Values
