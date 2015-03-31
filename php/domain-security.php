@@ -37,14 +37,7 @@
       $security = $this->SecurityDAL;
       $yahoo = $this->YahooFinance;
 
-      $targetDate = "3/01/2015";
-      while (DateCompare ($security->Data->GetLatestDate (), $targetDate) < 0)
-      {
-        Message ("Haven't reached the target, so around we go again.");
-        $this->UpdateStocks ();
-      }
-
-      Warn ("This ride.  Is.  OVER.");
+      $this->RepairData ();
     }
 
     public function UpdateDividends ()
@@ -62,9 +55,27 @@
       $dataType = TABLE_DATA;
       $updateSource = $this->SecurityDAL->Stock;
       $updateFunction = "UpdateStockDataSingle";
-      $where = sprintf ("%s = 1", M_ALIVE);
+      $where = "Stock.StockId IS NOT NULL";
 
       $this->UpdateTable ($dataType, true, $updateSource, $updateFunction, $where);
+    }
+
+    public function RepairData ()
+    {
+      $dataType = TABLE_FAILURE;
+      $updateSource = $this->SecurityDAL->Failure;
+      $updateFunction = "RepairDataSingle";
+      $repairRetries = 50;
+      $originalRetries = GetYahooMaxRetries ();
+
+      // TODO: After this round, make things more robust.
+      ExpectId ($repairTableId = $this->IsValidDataType (TABLE_FAILURE));
+      $where = sprintf ("%s <> %d", PK_DATATYPE, $repairTableId);
+
+
+      SetYahooMaxRetries ($repairRetries);
+      $this->UpdateTable ($dataType, false, $updateSource, $updateFunction, $where);
+      SetYahooMaxRetries ($originalRetries);
     }
 
     public function RepairMetaData ()
@@ -160,7 +171,7 @@
       {
         $page = ValueGetCritical ($existingProgress, P_INDEX);
         $count = ValueGetCritical ($existingProgress, P_SIZE);
-        $where = ValueGetCritical ($existingProgress, P_WHERE);
+        $where = ValueGet ($existingProgress, P_WHERE);
 
         if ($hasDates)
         {
@@ -224,6 +235,15 @@
       return false;
     }
 
+    private function GetValidDataType ($dataTypeId)
+    {
+      foreach ($this->ValidDataTypes as $validType)
+        if (ValueGetCritical ($validType, PK_DATATYPE) == $dataTypeId)
+          return ValueGetCritical ($validType, DT_NAME);
+
+      return false;
+    }
+
     private function RecordFailure ($paramObj, $dataTypeId, $startDate, $endDate)
     {
       $stockId = ValueGetCritical ($paramObj, PK_STOCK);  
@@ -264,9 +284,10 @@
       $stockId = ValueGetCritical ($stockObj, PK_STOCK);
       $symbol = ValueGetCritical ($stockObj, STOCK_TICKER);
       $founded = ValueGetCritical ($stockObj, M_FOUNDED);
+      $isAlive = ValueGetCritical ($stockObj, M_ALIVE);
 
       $shouldHaveData = DateCompare ($endDate, $founded) > 0;
-      if (!$shouldHaveData)
+      if (!$isAlive || !$shouldHaveData)
         return true;
 
       $data = $this->SecurityDAL->Data;
@@ -312,6 +333,30 @@
 
       $this->SecurityDAL->Meta->Insert ($stockId, $startDate, $isAlive, $hasDividends);
       return true;
+    }
+
+    private function RepairDataSingle ($failureObj, &$startDate, &$endDate)
+    {
+      $stockId = ValueGetCritical ($failureObj, PK_STOCK);
+      $dataTypeId = ValueGetCritical ($failureObj, PK_DATATYPE);
+      $startDate = ValueGetCritical ($failureObj, F_START);
+      $endDate = ValueGetCritical ($failureObj, F_END);
+
+      $dataType = $this->GetValidDataType ($dataTypeId);
+      $stockObj = $this->SecurityDAL->Stock->GetByPrimary ($stockId);
+      $updateMethod = NULL;
+
+      switch ($dataType)
+      {
+        case TABLE_DATA:
+          $updateMethod = "UpdateStockDataSingle";
+          break;
+      }
+
+      if ($updateMethod == NULL)
+        Error ("Invalid data type was stored in stock failure");
+
+      return $this->$updateMethod ($stockObj, $startDate, $endDate);
     }
 
     private function IsAlive ($endDate)

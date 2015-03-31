@@ -1,7 +1,7 @@
 CREATE DATABASE IF NOT EXISTS security;
 USE security;
 
-DROP TABLE IF EXISTS StockFailure;
+-- DROP TABLE IF EXISTS StockFailure;
 
 -- DROP TABLE IF EXISTS StockData;
 -- DROP TABLE IF EXISTS StockMetaData;
@@ -103,6 +103,6 @@ CREATE TABLE IF NOT EXISTS StockFailure (
   CONSTRAINT uc_StockFailureEntry UNIQUE (StockId,DataTypeId,FailureStartDate,FailureEndDate));
 
 -- Initial Data
-INSERT INTO DataType (DataTypeName) VALUES ('StockData'),('StockDividend'),('StockMetaData');
+INSERT INTO DataType (DataTypeName) VALUES ('StockData'),('StockDividend'),('StockMetaData'),('StockFailure');
 
 -- source ~/git/security/sql/security_data.sql
