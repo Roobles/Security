@@ -1,13 +1,22 @@
 #ifndef STOCK_DATA_H
 #define STOCK_DATA_H
 
+typedef enum
+{
+  High = 0x00,
+  Low = 0x01,
+  Close = 0x02
+} StockAttribute;
+
 typedef struct 
 {
-  unsigned int StockId;
-  unsigned int StockDataId;
   float High;
   float Low;
   float Close;
+
+  unsigned int StockId;
+  unsigned int StockDataId;
+
   char Date[11];
 } StockData;
 
@@ -20,5 +29,6 @@ typedef struct
 StockHistory* GetStockHistory (int stockId);
 void CleanStockHistory (StockHistory* history);
 void PrintStockHistory (StockHistory* history);
+float GetStockAttribute (StockData* stock, StockAttribute attribute);
 
 #endif

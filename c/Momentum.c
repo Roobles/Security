@@ -2,16 +2,16 @@
 #include <math.h>
 #include "Momentum.h"
 
-static float Supplication (Momentum* inertial, float mass);
-static float GetMomentum (Momentum* inertial);
 static float GetTraction (Momentum* inertial, MomentumAttributes* system);
 static float GetDownforceMass (float mass, float magnitude, MomentumAttributes* system);
 static float GetWeight (float mass, MomentumAttributes* system);
-static float AboutFace (float momentum, float traction, float requestFacing, MomentumAttributes* system);
-static float KineticLoss (float momentum, float requestFacing, float deltaFacing, MomentumAttributes* system);
-static float Hunger (float magnitude, float kineticLoss, MomentumAttributes* system);
 
-static Momentum* Blossom (Momentum* inertial, float mass, float supplication, MomentumAttributes* system);
+static float GetTurnRatio (float direction, float targetDirection);
+static float GetRequiredSpeed (float intialSpeed, float mass, float turnRatio, float traction);
+static float GetBreakForce (float initialSpeed, float mass, float adjustedSpeed, MomentumAttributes* system);
+static float GetAdjustedSpeed (float initialSpeed, float requiredSpeed, float breakForce, float traction, MomentumAttributes* system);
+
+static Momentum* Blossom (Momentum* inertial, float mass, float direction, MomentumAttributes* system);
 
 
 // Implementation of Momentum.h
@@ -32,13 +32,11 @@ Momentum* NewMomentum (float mass, float magnitude, float direction)
   return prodigy;
 }
 
-Momentum* ApplyMomentum (Momentum* inertial, float mass, MomentumAttributes* system)
+Momentum* ApplyMomentum (Momentum* inertial, float mass, float direction, MomentumAttributes* system)
 {
-  float supplication;
   Momentum* prodigy;
 
-  supplication = Supplication (inertial, mass);
-  prodigy = Blossom (inertial, mass, supplication, system);
+  prodigy = Blossom (inertial, mass, direction, system);
 
   HaltMomentum (inertial);
   return prodigy;
@@ -59,37 +57,20 @@ void CleanseMomentumAttributes (MomentumAttributes* system)
 }
 
 // Static Functions
-static float GetMomentum (Momentum* inertial)
+static Momentum* Blossom (Momentum* inertial, float mass, float direction, MomentumAttributes* system)
 {
-  return inertial->Mass * inertial->Velocity.Magnitude;
-}
+  float requiredTurn, turnRatio, breakForce, requiredSpeed;
+  float traction, initialSpeed, speed;
 
-static float Supplication (Momentum* inertial, float mass)
-{
-  float direction, supplicant; 
-
-  supplicant = inertial->Mass;
-  direction = inertial->Velocity.Direction;
-
-  return ((mass - supplicant) / (2 * mass)) * 100;
-}
-
-static Momentum* Blossom (Momentum* inertial, float mass, float supplication, MomentumAttributes* system)
-{
-  float requestFacing, facing, deltaFacing; 
-  float momentum, traction, deltaKinetic, speed, magnitude;
-
-  momentum = GetMomentum (inertial);
   traction = GetTraction (inertial, system);
-  requestFacing = inertial->Velocity.Direction - supplication;
-  magnitude = inertial->Velocity.Magnitude;
+  initialSpeed = inertial->Velocity.Magnitude;
 
-  facing = AboutFace (momentum, traction, requestFacing, system);
-  deltaFacing = requestFacing - facing;
-  deltaKinetic = KineticLoss (momentum, requestFacing, deltaFacing, system);
-  speed = Hunger (magnitude, deltaKinetic, system);
+  turnRatio = GetTurnRatio (inertial->Velocity.Direction, direction);
+  requiredSpeed = GetRequiredSpeed (initialSpeed, mass, turnRatio, traction);
+  breakForce = GetBreakForce (initialSpeed, mass, requiredSpeed, system);
+  speed = GetAdjustedSpeed (initialSpeed, requiredSpeed, breakForce, traction, system);
 
-  return NewMomentum (mass, speed, facing);
+  return NewMomentum (mass, speed, direction);
 }
 
 static float GetTraction (Momentum* inertial, MomentumAttributes* system)
@@ -143,7 +124,7 @@ static float GetDownforceMass (float mass, float magnitude, MomentumAttributes* 
   aspectRatio = system->VehicleAspectRatio;
   angleOfAttack = system->AngleOfAttack;
   lCoefficient = system->LiftCoefficient;
-  gCoefficient = system->GravityCoefficient;
+  gCoefficient = system->Gravity;
   
   downforce = (vehicleLength * vehicleHeight * angleOfAttack * lCoefficient * airDensity * powf (magnitude, 2)) / 2;
   return downforce / gCoefficient;
@@ -153,36 +134,71 @@ static float GetWeight (float mass, MomentumAttributes* system)
 {
   float gCoefficient;
   
-  gCoefficient = system->GravityCoefficient;
+  gCoefficient = system->Gravity;
   return mass * gCoefficient;
 }
 
-static float AboutFace (float momentum, float traction, float requestFacing, MomentumAttributes* system)
+static float GetTurnRatio (float direction, float targetDirection)
 {
-  float deltaFacing;
+  float inside, outside, target, maxDegree, pi;
 
-  // TODO: Write this!
-  deltaFacing = 0;
+  // angle = ^tan (theta)
+  // theta = (m1 - m2) / (1 + m1*m2)
+  float m1, m2, theta;
+  m1 = direction;
+  m2 = targetDirection;
 
-  return deltaFacing;
+  theta = (m1 - m2) / (1.0 + m1*m2);
+  
+  maxDegree = 180.0;
+  pi = 3.14;
+
+  inside = fabs ((atanf (theta) * maxDegree) / pi);
+  outside = maxDegree - inside;
+
+  target = ((m1 >= 0 && m2 >= 0) || (m1 <=0 && m2 <= 0))
+    ? inside
+    : outside;
+
+  return target / maxDegree;
 }
 
-static float KineticLoss (float momentum, float requestFacing, float deltaFacing, MomentumAttributes* system)
+static float GetRequiredSpeed (float initialSpeed, float mass, float turnRatio, float traction)
 {
-  float deltaKinetic;
+  // momentum = speed * mass
+  // turnForce = momentum * turnRatio
+  // turnForce = traction (Make it so.)
 
-  // TODO: Write this!
-  deltaKinetic = 0;
+  // traction <= momentum * turnRatio
+  // traction <= speed * mass * turnRatio
+  // speed = traction / (mass * turnRatio);
 
-  return deltaKinetic;
-}
+  float turnForce, speed, momentum;
+  float breakAmmount, acceleration;
 
-static float Hunger (float magnitude, float kineticLoss, MomentumAttributes* system)
-{
-  float speed;
+  speed = initialSpeed;
+  momentum = speed * mass;
+  turnForce = momentum * turnRatio;
 
-  // TODO: Write this!
-  speed = 0;
+  // If turn force exceeds traction, you need to slow down.
+  if (turnForce > traction)
+    speed = traction / (mass * turnRatio);
 
   return speed;
+}
+
+static float GetBreakForce (float initialSpeed, float mass, float adjustedSpeed, MomentumAttributes* system)
+{
+  // TODO: Implement this.
+  return 0;
+}
+
+static float GetAdjustedSpeed (float initialSpeed, float requiredSpeed, float breakForce, float traction, MomentumAttributes* system)
+{
+  // TODO: Implement this.
+  float accelleration;
+  accelleration = 10;
+  
+  // TODO: No.  Seriously.  Do this.
+  return requiredSpeed + (((traction - breakForce) / traction) * accelleration);
 }

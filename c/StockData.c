@@ -6,7 +6,7 @@
 static void InitializeStockData (StockData* data, int stockId, int itteration);
 static void PrintStockData (StockData* history);
 
-
+// StockData.h Implementation
 StockHistory* GetStockHistory (int stockId)
 {
   StockHistory* history;
@@ -35,6 +35,14 @@ void PrintStockHistory (StockHistory* history)
   count = history->Count;
   for (i=0; i<count; i++)
     PrintStockData (&history->Data[i]);
+}
+
+float GetStockAttribute (StockData* stock, StockAttribute attribute)
+{
+  float* stockAttributes;
+
+  stockAttributes = (float*) stock;
+  return stockAttributes[attribute];
 }
 
 // Statics

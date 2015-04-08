@@ -1,3 +1,10 @@
 # Generated Files
 sql/security_data.sql
 php/credentials.php
+
+# General Files
+*.swp*
+*.gz
+
+# Binaries
+*/bin/
