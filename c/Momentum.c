@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <math.h>
+#include <mysql.h>
 #include "Momentum.h"
 
 static float GetTraction (Momentum* inertial, MomentumAttributes* system);
@@ -42,18 +43,28 @@ Momentum* ApplyMomentum (Momentum* inertial, float mass, float direction, Moment
   return prodigy;
 }
 
+void CleanseMomentumAttributes (MomentumAttributes* system)
+{
+  free (system);
+}
 
-MomentumAttributes* NewMomentumAttributes ()
+
+MomentumAttributes* NewMomentumAttributes (float tCoefficient, float lCoefficient, float gravity, 
+  float airDensity, float angleOfAttack, float vehicleAspectRatio, float vehicleDensity, float acceleration)
 {
   MomentumAttributes* system;
 
   system = malloc (sizeof (MomentumAttributes));
-  return system;
-}
+  system->TractionCoefficient = tCoefficient;
+  system->LiftCoefficient = lCoefficient;
+  system->Gravity = gravity;
+  system->AirDensity = airDensity;
+  system->AngleOfAttack = angleOfAttack;
+  system->VehicleAspectRatio = vehicleAspectRatio;
+  system->VehicleDensity = vehicleDensity;
+  system->Acceleration = acceleration;
 
-void CleanseMomentumAttributes (MomentumAttributes* system)
-{
-  free (system);
+  return system;
 }
 
 // Static Functions
@@ -101,24 +112,11 @@ static float GetTraction (Momentum* inertial, MomentumAttributes* system)
 static float GetDownforceMass (float mass, float magnitude, MomentumAttributes* system)
 {
   float vehicleDensity, aspectRatio; 
-  float vehicleVolume, vehicleLength, vehicleHeight;
+  float vehicleVolume, vehicleLength, vehicleHeight, vehicleWidth, wingHeight;
   float angleOfAttack, lCoefficient, gCoefficient, airDensity;
   float downforce;
 
-  // Get height and length of vehicle.
-  // Assume width = height, and width = wingspan.
-  // Assume wing height = vehicle height.
-
-  vehicleVolume = mass / vehicleDensity;
-  vehicleHeight = powf ((vehicleVolume / aspectRatio), (1.0/3.0));
-  vehicleLength = vehicleHeight / aspectRatio;
-
-  // D(N) = 1/2 WingSpan * Height * alpha * L * r * V^2
-  // alpha = AngleOfAttack (radians)
-  // L = Lift Coefficient
-  // r = Air Resistance
-  // V = Velocity
-
+  // Retrieve system variables.
   airDensity = system->AirDensity;
   vehicleDensity = system->VehicleDensity;
   aspectRatio = system->VehicleAspectRatio;
@@ -126,7 +124,23 @@ static float GetDownforceMass (float mass, float magnitude, MomentumAttributes* 
   lCoefficient = system->LiftCoefficient;
   gCoefficient = system->Gravity;
   
-  downforce = (vehicleLength * vehicleHeight * angleOfAttack * lCoefficient * airDensity * powf (magnitude, 2)) / 2;
+  // Get height and length of vehicle.
+  // Assume width = height, and width = wingspan.
+  // Assume wing height = vehicle height.
+
+  vehicleVolume = mass / vehicleDensity;
+  vehicleLength = powf ((vehicleVolume / aspectRatio), (1.0/3.0));
+  vehicleHeight = vehicleLength / aspectRatio;
+  vehicleWidth = vehicleHeight;
+  wingHeight = vehicleHeight / 10.0; // TODO: Make this variable.
+
+  // D(N) = 1/2 WingSpan * Height * alpha * L * r * V^2
+  // alpha = AngleOfAttack (radians)
+  // L = Lift Coefficient
+  // r = Air Resistance
+  // V = Velocity
+
+  downforce = (vehicleWidth * wingHeight * angleOfAttack * lCoefficient * airDensity * powf (magnitude, 2)) / 2;
   return downforce / gCoefficient;
 }
 

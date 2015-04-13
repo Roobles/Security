@@ -19,6 +19,11 @@ Momentum* NewStockMomentum (StockData* stock, StockMomentumAttributes* stockAttr
   magnitude = stockAttr->InitialMagnitude;
   mass = GetMassFromStock (stock, stockAttr);
 
+  prodigy = malloc (sizeof (Momentum));
+  prodigy->Mass = mass;
+  prodigy->Velocity.Direction = direction;
+  prodigy->Velocity.Magnitude = magnitude;
+
   return prodigy;
 }
 

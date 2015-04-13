@@ -11,15 +11,22 @@ C_FILES=()
 C_FILES+=(StockData.c)
 C_FILES+=(Momentum.c)
 C_FILES+=(StockMomentum.c)
+C_FILES+=(DbConnection.c)
+C_FILES+=(DbUtils.c)
+C_FILES+=(LibRoo.c)
 
 # Library Definitions
 L_LINKS=()
 L_LINKS+=(m)
+L_LINKS+=(mysqlclient)
+
+I_INCLUDES=()
+I_INCLUDES+=(/usr/include/mysql)
 
 # Output Files
 O_FILES=()
 O_FILES+=(StockAnalyze.c)
-
+O_FILES+=(Calibrate.c)
 
 for output in `echo ${O_FILES[@]}`; do
   # Get the output name.
@@ -40,6 +47,10 @@ for output in `echo ${O_FILES[@]}`; do
   # Add the links.
   for link in `echo ${L_LINKS[@]}`; do
     BUILD_CMD+=(-l${link})
+  done
+
+  for include in `echo ${I_INCLUDES[@]}`;  do
+    BUILD_CMD+=(-I${include})
   done
 
   BUILD_CMD+=(-o "${BIN_DIR}/${OUTPUT_FILE}")

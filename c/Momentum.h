@@ -26,6 +26,8 @@ typedef struct
   float VehicleAspectRatio;
   float VehicleDensity;
 
+  float Acceleration;
+
 } MomentumAttributes;
 
 void HaltMomentum (Momentum* green);
@@ -33,6 +35,7 @@ Momentum* NewMomentum (float mass, float magnitude, float direction);
 Momentum* ApplyMomentum (Momentum* inertial, float mass, float direction, MomentumAttributes* system);
 
 void CleanseMomentumAttributes (MomentumAttributes* system);
-MomentumAttributes* NewMomentumAttributes ();
+MomentumAttributes* NewMomentumAttributes (float tCoefficient, float lCoefficient, float gravity, 
+  float airDensity, float angleOfAttack, float vehicleAspectRatio, float vehicleDensity, float acceleration);
 
 #endif

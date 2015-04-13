@@ -1,28 +1,54 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "StockData.h"
+#include <mysql.h>
 
-static void InitializeStockData (StockData* data, int stockId, int itteration);
+#include "LibRoo.h"
+#include "SecurityDefinitions.h"
+#include "StockData.h"
+#include "DbConnection.h"
+#include "DbUtils.h"
+
+// Function Definitions
+static void SetStockData (StockData* data, MYSQL_ROW* row);
 static void PrintStockData (StockData* history);
+
 
 // StockData.h Implementation
 StockHistory* GetStockHistory (int stockId)
 {
+  // TODO: Implement this for real.
+  MYSQL* conn;
+  MYSQL_ROW row;
+  MYSQL_RES* result;
   StockHistory* history;
-  int i, count = 15;
+
+  int stockCount, whereLen, i;
+  char *where, stockIdStr[8];
+  const char* whereFmt =  "StockId = %s";
+  const char* contents = "*";
 
   history = malloc (sizeof (StockHistory));
-  history->Count = count;
-  history->Data = malloc (sizeof (StockData) * count);
+  sprintf (stockIdStr, "%d", stockId);
+  where = BuildClause (whereFmt, stockIdStr, &whereLen);
 
-  for (i=0; i<count; i++)
-    InitializeStockData (&history->Data[i], stockId, i);
-    
+  conn = NewDbConnection ();
+  result = DbSelect (conn, contents, TABLE_STOCK_DATA, where, NULL, 0, 0);
+
+  history->Count = stockCount = mysql_num_rows (result);
+  history->Data = malloc (sizeof (StockData) * stockCount);
+
+  for (i=0; row = mysql_fetch_row (result); i++)
+    SetStockData (&history->Data[i], (MYSQL_ROW*) row);
+
+  mysql_free_result (result);
+  CleanseDbConnection (conn);
+
+  if (whereLen > 0) free (where);
   return history;
 }
 
-void CleanStockHistory (StockHistory* history)
+void CleanseStockHistory (StockHistory* history)
 {
   free (history->Data);
   free (history);
@@ -46,15 +72,22 @@ float GetStockAttribute (StockData* stock, StockAttribute attribute)
 }
 
 // Statics
-static void InitializeStockData (StockData* data, int stockId, int itteration)
+#define rtoc(tfunc,ordinal) tfunc ((char*)row[ordinal])
+#define rtof(ordinal) rtoc (atof,ordinal)
+#define rtoi(ordinal) rtoc (atoi,ordinal)
+static void SetStockData (StockData* data, MYSQL_ROW* row)
 {
-  data->StockId = stockId;
-  data->StockDataId = itteration + 1; 
-  data->High = 19.45;
-  data->Low = 15.21;
-  data->Close = 17.11;
+  const char* floatFormat = "%f";
+  const char* intFormat = "%d";
   
-  strcpy (data->Date, "2015-03-15");
+  data->High = rtof (F_STOCK_HIGH);
+  data->Low = rtof (F_STOCK_LOW);
+  data->Close = rtof (F_STOCK_CLOSE);
+
+  data->StockId = rtoi (F_STOCK_ID);
+  data->StockDataId = rtoi (F_STOCK_DATA_ID);
+
+  strcpy (data->Date, (char*) row[F_STOCK_DATE]);
 }
 
 static void PrintStockData (StockData* data)

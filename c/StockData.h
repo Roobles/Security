@@ -27,7 +27,7 @@ typedef struct
 } StockHistory;
 
 StockHistory* GetStockHistory (int stockId);
-void CleanStockHistory (StockHistory* history);
+void CleanseStockHistory (StockHistory* history);
 void PrintStockHistory (StockHistory* history);
 float GetStockAttribute (StockData* stock, StockAttribute attribute);
 

@@ -22,5 +22,5 @@ int main (int argc, char** argv)
   stockAttr = NewStockMomentumAttributes (mCoefficient, baseWeight, initialDir, initialMag, price);
 
   PrintStockHistory (history);
-  CleanStockHistory (history);
+  CleanseStockHistory (history);
 }
