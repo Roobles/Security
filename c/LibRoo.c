@@ -96,6 +96,11 @@ char* BuildClause (const char* format, const char* arg, int* length)
   return clause;
 }
 
+void tryfree (char* str)
+{
+  if (str != NULL)
+    free (str);
+}
 
 // Static functions
 static FILE* get_std_stream ()

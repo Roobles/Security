@@ -1,5 +1,5 @@
 #ifndef DB_CONNECTION_H
-#define DB_CONNECTION_H
+#define DB_CONNECTION_H 1
 
 #include <mysql.h>
 

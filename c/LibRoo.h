@@ -1,5 +1,5 @@
 #ifndef LIB_ROO_H
-#define LIB_ROO_H
+#define LIB_ROO_H 1
 
 typedef enum
 {
@@ -19,4 +19,6 @@ void trace (const char* message);
 
 char* strclone (const char* source);
 char* BuildClause (const char* format, const char* arg, int* length);
+
+void tryfree (char* str);
 #endif

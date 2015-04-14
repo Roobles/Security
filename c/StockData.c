@@ -18,9 +18,6 @@ static void PrintStockData (StockData* history);
 StockHistory* GetStockHistory (int stockId)
 {
   // TODO: Implement this for real.
-  MYSQL* conn;
-  MYSQL_ROW row;
-  MYSQL_RES* result;
   StockHistory* history;
 
   int stockCount, whereLen, i;
@@ -32,19 +29,10 @@ StockHistory* GetStockHistory (int stockId)
   sprintf (stockIdStr, "%d", stockId);
   where = BuildClause (whereFmt, stockIdStr, &whereLen);
 
-  conn = NewDbConnection ();
-  result = DbSelect (conn, contents, TABLE_STOCK_DATA, where, NULL, 0, 0);
+  SELECT (contents, TABLE_STOCK_DATA, where,
+    NULL, history, SetStockData, StockData);
 
-  history->Count = stockCount = mysql_num_rows (result);
-  history->Data = malloc (sizeof (StockData) * stockCount);
-
-  for (i=0; row = mysql_fetch_row (result); i++)
-    SetStockData (&history->Data[i], (MYSQL_ROW*) row);
-
-  mysql_free_result (result);
-  CleanseDbConnection (conn);
-
-  if (whereLen > 0) free (where);
+  tryfree (where);
   return history;
 }
 
@@ -72,22 +60,16 @@ float GetStockAttribute (StockData* stock, StockAttribute attribute)
 }
 
 // Statics
-#define rtoc(tfunc,ordinal) tfunc ((char*)row[ordinal])
-#define rtof(ordinal) rtoc (atof,ordinal)
-#define rtoi(ordinal) rtoc (atoi,ordinal)
 static void SetStockData (StockData* data, MYSQL_ROW* row)
 {
-  const char* floatFormat = "%f";
-  const char* intFormat = "%d";
-  
-  data->High = rtof (F_STOCK_HIGH);
-  data->Low = rtof (F_STOCK_LOW);
-  data->Close = rtof (F_STOCK_CLOSE);
+  data->High = rtof (F_DATA_STOCK_HIGH);
+  data->Low = rtof (F_DATA_STOCK_LOW);
+  data->Close = rtof (F_DATA_STOCK_CLOSE);
 
-  data->StockId = rtoi (F_STOCK_ID);
-  data->StockDataId = rtoi (F_STOCK_DATA_ID);
+  data->StockId = rtoi (F_DATA_STOCK_ID);
+  data->StockDataId = rtoi (F_DATA_STOCK_DATA_ID);
 
-  strcpy (data->Date, (char*) row[F_STOCK_DATE]);
+  strcpy (data->Date, (char*) row[F_DATA_STOCK_DATE]);
 }
 
 static void PrintStockData (StockData* data)

@@ -2,6 +2,7 @@
 #include "StockMomentum.h"
 #include "DbConnection.h"
 #include "SecurityDefinitions.h"
+#include "Stock.h"
 #include "LibRoo.h"
 
 static MomentumAttributes* GetMomentumAttributes ();
@@ -12,6 +13,7 @@ int main (int argc, char** argv)
 {
   MomentumAttributes* system;
   StockMomentumAttributes* stockAttr;
+  StockCollection* stocks;
   StockHistory* history;
   StockData *child, *parent;
   MYSQL* conn;
@@ -29,6 +31,7 @@ int main (int argc, char** argv)
 
   system = GetMomentumAttributes ();
   stockAttr = GetStockMomentumAttributes ();
+  stocks = GetStocks ("IsAlive = 1");
 
   history = GetStockHistory (stockId);
   parent = NULL;
@@ -43,6 +46,7 @@ int main (int argc, char** argv)
     parent = child;
   }
 
+  CleanseStocks (stocks);
   CleanseStockHistory (history);
   CleanseStockMomentumAttributes (stockAttr);
   CleanseMomentumAttributes (system);

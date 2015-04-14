@@ -1,5 +1,5 @@
 #ifndef STOCK_MOMENTUM_H
-#define STOCK_MOMENTUM_H
+#define STOCK_MOMENTUM_H 1
 
 #include "StockData.h"
 #include "Momentum.h"

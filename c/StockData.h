@@ -1,5 +1,5 @@
 #ifndef STOCK_DATA_H
-#define STOCK_DATA_H
+#define STOCK_DATA_H 1
 
 typedef enum
 {

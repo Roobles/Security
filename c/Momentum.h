@@ -1,5 +1,5 @@
 #ifndef MOMENTUM_H
-#define MOMENTUM_H
+#define MOMENTUM_H 1
 
 typedef struct
 {

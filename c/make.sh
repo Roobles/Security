@@ -13,6 +13,7 @@ C_FILES+=(Momentum.c)
 C_FILES+=(StockMomentum.c)
 C_FILES+=(DbConnection.c)
 C_FILES+=(DbUtils.c)
+C_FILES+=(Stock.c)
 C_FILES+=(LibRoo.c)
 
 # Library Definitions

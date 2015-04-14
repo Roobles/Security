@@ -7,24 +7,17 @@
 #include "DbUtils.h"
 #include "DbConnection.h"
 
+static char* BuildSelectCommand (const char* contents, const char* tableName,
+  const char* where, const char* orderby);
+
 static char* BuildWhereClause (const char* where, int* length);
 static char* BuildOrderClause (const char* orderBy, int* length);
-static char* BuildLimitClause (int size, int page, int* length);
 static MYSQL_RES* DbQuery (MYSQL* conn, const char* queryStr);
 
 // DbUtils.h Implementation
-void DbDelete (const char* tableName, const char* where)
-{
-
-}
-
-void DbInsert (const char* tableName, const char* columns, const char* values)
-{
-  
-}
-
 int DbGetCount (const char* tableName, const char* where)
 {
+  /*
   int count;
   MYSQL_RES* result;
   MYSQL_ROW row;
@@ -41,24 +34,48 @@ int DbGetCount (const char* tableName, const char* where)
   CleanseDbConnection (conn);
 
   return count;
+  */
 }
 
-MYSQL_RES* DbSelect (MYSQL* conn, const char* contents,
-  const char* tableName, const char* where, const char* orderby,
-  int size, int page)
+void DbSelect (const char* contents, const char* tableName, 
+  const char* where, const char* orderby, DbCollection* collection, 
+  DataTranslator translator, unsigned int collectionSize)
 {
-  char* whereClause, *orderClause, *limitClause, *selectCmd;
-  int selectLen, contentsLen, whereLen, orderLen, limitLen, tableLen, formatLen;
-
+  int i, resultCount;
+  char* selectCmd;
   MYSQL_RES* result;
+  MYSQL_ROW row;
+  MYSQL* conn;
 
-  const char* selectFmt = "SELECT %s FROM %s%s%s%s"; formatLen = 10;
+  conn = NewDbConnection ();
+
+  selectCmd = BuildSelectCommand (contents, tableName, where, orderby);
+  result = DbQuery (conn, selectCmd);
+
+  collection->Count = resultCount = mysql_num_rows (result);
+  collection->Data = malloc (collectionSize * resultCount);
+
+  for (i=0; row = mysql_fetch_row (result); i++)
+    translator (&((char*)collection->Data)[i*collectionSize], (MYSQL_ROW*) row);
+
+  mysql_free_result (result);
+  CleanseDbConnection (conn);
+
+  free (selectCmd);
+}
+
+// Static Functions
+static char* BuildSelectCommand (const char* contents, const char* tableName,
+  const char* where, const char* orderby)
+{
+  char* whereClause, *orderClause, *selectCmd;
+  int selectLen, contentsLen, whereLen, orderLen, tableLen, formatLen;
+  const char* selectFmt = "SELECT %s FROM %s%s%s"; formatLen = 8;
 
   tableLen = strlen (tableName);
   contentsLen = strlen (contents);
   whereClause = BuildWhereClause (where, &whereLen);
   orderClause = BuildOrderClause (orderby, &orderLen);
-  limitClause = BuildLimitClause (size, page, &limitLen);
 
   selectLen = strlen (selectFmt);
   selectLen += tableLen;
@@ -69,19 +86,14 @@ MYSQL_RES* DbSelect (MYSQL* conn, const char* contents,
 
   selectCmd = malloc (selectLen + 1);
   sprintf (selectCmd, selectFmt, contents, tableName, whereClause,
-    orderClause, limitClause);
+    orderClause);
 
   if (whereLen > 0) free (whereClause);
   if (orderLen > 0) free (orderClause);
-  if (limitLen > 0) free (limitClause);
 
-  result = DbQuery (conn, selectCmd);
-  free (selectCmd);
-
-  return result;
+  return selectCmd;
 }
 
-// Static Functions
 static MYSQL_RES* DbQuery (MYSQL* conn, const char* queryStr)
 {
   MYSQL_RES* result;
@@ -108,30 +120,3 @@ static char* BuildOrderClause (const char* orderBy, int* length)
   const char* orderFormat = " ORDER BY %s";
   return BuildClause (orderFormat, orderBy, length);
 }
-
-static char* BuildLimitClause (int size, int page, int* length)
-{
-  int skip, limitLen, formats;
-  char *limitClause, sizeStr[8], skipStr[16];
-  const char* limitFormat = " LIMIT %s, %s";
-
-  // Return empty if not paging.
-  *length = 0;
-  if (size <= 0) return "";
-
-  skip = size * page;
-  sprintf (sizeStr, "%d", size);
-  sprintf (skipStr, "%d", skip);
-
-  formats = 2;
-  *length += strlen (limitFormat);
-  *length += strlen (sizeStr);
-  *length += strlen (skipStr);
-  *length -= (formats * 2);
-
-  limitClause = malloc (*length + 1);
-  sprintf (limitClause, limitFormat, sizeStr, skipStr);
-  
-  return limitClause;
-}
-
