@@ -8,46 +8,29 @@
 static MomentumAttributes* GetMomentumAttributes ();
 static StockMomentumAttributes* GetStockMomentumAttributes ();
 static void SetDb (char* user, char* pass);
+static void GetStockMomentum (Stock* stock, StockMomentumAttributes* stockAttr, MomentumAttributes* system);
 
 int main (int argc, char** argv)
 {
+  int i;
   MomentumAttributes* system;
   StockMomentumAttributes* stockAttr;
   StockCollection* stocks;
-  StockHistory* history;
-  StockData *child, *parent;
-  MYSQL* conn;
   char *user, *password;
-  int i, stockId;
-
-  Momentum* currMomentum = NULL;
 
   user = argv[1];
   password = argv[2];
-  stockId = atoi (argv[3]);
 
   SetDb (user, password);
-  SetMessageLevel (Debug);
-
   system = GetMomentumAttributes ();
   stockAttr = GetStockMomentumAttributes ();
   stocks = GetStocks ("IsAlive = 1");
 
-  history = GetStockHistory (stockId);
-  parent = NULL;
-  for (i=0; i<history->Count; i++)
-  {
-    child = &history->Data[i];
-    currMomentum = (currMomentum == NULL)
-      ? NewStockMomentum (child, stockAttr)
-      : ApplyStockMomentum (currMomentum, parent, child, stockAttr, system);
-
-    printf ("Close: $%-10.2fSpeed: %.2f mph\n", child->Close, currMomentum->Velocity.Magnitude * 2.236);
-    parent = child;
-  }
+  for (i=0; i<stocks->Count; i++)
+    GetStockMomentum (&stocks->Data[i], stockAttr, system);
+    
 
   CleanseStocks (stocks);
-  CleanseStockHistory (history);
   CleanseStockMomentumAttributes (stockAttr);
   CleanseMomentumAttributes (system);
 }
@@ -93,4 +76,31 @@ static void SetDb (char* user, char* pass)
   const char* dbName = "security";
   
   SetDbConnectionSettings (host, user, pass, dbName, 0, NULL, 0);
+}
+
+static void GetStockMomentum (Stock* stock, StockMomentumAttributes* stockAttr, MomentumAttributes* system)
+{
+  int i, stockId;
+  double summation;
+  StockHistory* history;
+  StockData *child, *parent;
+  Momentum* currMomentum = NULL;
+
+  summation = 0;
+  stockId = stock->StockId;
+  history = GetStockHistoryById (stockId);
+  for (i=0; i<history->Count; i++)
+  {
+    child = &history->Data[i];
+    currMomentum = (currMomentum == NULL)
+      ? NewStockMomentum (child, stockAttr)
+      : ApplyStockMomentum (currMomentum, parent, child, stockAttr, system);
+
+    summation += (currMomentum->Velocity.Magnitude * currMomentum->Mass);
+    parent = child;
+  }
+
+  printf ("Stock: %-10s Avg.Momentum: %.2f\n", stock->Ticker, (summation / history->Count));
+  CleanseStockHistory (history);
+  //sleep (1);
 }

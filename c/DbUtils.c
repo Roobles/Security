@@ -15,28 +15,6 @@ static char* BuildOrderClause (const char* orderBy, int* length);
 static MYSQL_RES* DbQuery (MYSQL* conn, const char* queryStr);
 
 // DbUtils.h Implementation
-int DbGetCount (const char* tableName, const char* where)
-{
-  /*
-  int count;
-  MYSQL_RES* result;
-  MYSQL_ROW row;
-  MYSQL* conn;
-
-  conn = NewDbConnection ();
-  if ((result = DbSelect (conn, "COUNT(*)", tableName, where, NULL, 0, 0)) == NULL)
-    return 0;
-
-  while (row = mysql_fetch_row(result))
-    count = atoi (row[0]);
-
-  mysql_free_result (result);
-  CleanseDbConnection (conn);
-
-  return count;
-  */
-}
-
 void DbSelect (const char* contents, const char* tableName, 
   const char* where, const char* orderby, DbCollection* collection, 
   DataTranslator translator, unsigned int collectionSize)

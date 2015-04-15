@@ -18,7 +18,7 @@ int main (int argc, char** argv)
   price = Low;
 
   stockId = 15;
-  history = GetStockHistory (stockId);
+  history = GetStockHistoryById (stockId);
   stockAttr = NewStockMomentumAttributes (mCoefficient, baseWeight, initialDir, initialMag, price);
 
   PrintStockHistory (history);

@@ -24,6 +24,4 @@ typedef struct
 void DbSelect (const char* contents, const char* tableName, 
   const char* where, const char* orderby, DbCollection* collection, 
   DataTranslator translator, unsigned int collectionSize);
-
-int DbGetCount (const char* tableName, const char* where);
 #endif

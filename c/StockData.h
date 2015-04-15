@@ -26,7 +26,8 @@ typedef struct
   StockData* Data;
 } StockHistory;
 
-StockHistory* GetStockHistory (int stockId);
+StockHistory* GetStockHistory (char* where);
+StockHistory* GetStockHistoryById (int stockId);
 void CleanseStockHistory (StockHistory* history);
 void PrintStockHistory (StockHistory* history);
 float GetStockAttribute (StockData* stock, StockAttribute attribute);

@@ -15,22 +15,30 @@ static void PrintStockData (StockData* history);
 
 
 // StockData.h Implementation
-StockHistory* GetStockHistory (int stockId)
+StockHistory* GetStockHistory (char* where)
 {
-  // TODO: Implement this for real.
   StockHistory* history;
-
-  int stockCount, whereLen, i;
-  char *where, stockIdStr[8];
-  const char* whereFmt =  "StockId = %s";
   const char* contents = "*";
 
   history = malloc (sizeof (StockHistory));
+  SELECT (contents, TABLE_STOCK_DATA, where,
+    NULL, history, SetStockData, StockData);
+
+  return history;
+}
+
+StockHistory* GetStockHistoryById (int stockId)
+{
+  StockHistory* history;
+
+  int whereLen;
+  char *where, stockIdStr[8];
+  const char* whereFmt =  "StockId = %s";
+
   sprintf (stockIdStr, "%d", stockId);
   where = BuildClause (whereFmt, stockIdStr, &whereLen);
 
-  SELECT (contents, TABLE_STOCK_DATA, where,
-    NULL, history, SetStockData, StockData);
+  history = GetStockHistory (where);
 
   tryfree (where);
   return history;
