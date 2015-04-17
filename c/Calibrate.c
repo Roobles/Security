@@ -1,14 +1,21 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+
 #include "StockMomentum.h"
 #include "DbConnection.h"
 #include "SecurityDefinitions.h"
 #include "Stock.h"
+#include "DbPlot.h"
 #include "LibRoo.h"
 
 static MomentumAttributes* GetMomentumAttributes ();
 static StockMomentumAttributes* GetStockMomentumAttributes ();
 static void SetDb (char* user, char* pass);
-static void GetStockMomentum (Stock* stock, StockMomentumAttributes* stockAttr, MomentumAttributes* system);
+static void ProcessStock (Stock* stock, StockMomentumAttributes* stockAttr, MomentumAttributes* system);
+static void GetStockMomentum (Stock* stock, StockHistory* history, StockMomentumAttributes* stockAttr, MomentumAttributes* system);
+static void GraphStock (Stock* stock, StockHistory* history);
 
 int main (int argc, char** argv)
 {
@@ -27,7 +34,7 @@ int main (int argc, char** argv)
   stocks = GetStocks ("IsAlive = 1");
 
   for (i=0; i<stocks->Count; i++)
-    GetStockMomentum (&stocks->Data[i], stockAttr, system);
+    ProcessStock (&stocks->Data[i], stockAttr, system);
     
 
   CleanseStocks (stocks);
@@ -78,17 +85,29 @@ static void SetDb (char* user, char* pass)
   SetDbConnectionSettings (host, user, pass, dbName, 0, NULL, 0);
 }
 
-static void GetStockMomentum (Stock* stock, StockMomentumAttributes* stockAttr, MomentumAttributes* system)
+static void ProcessStock (Stock* stock, StockMomentumAttributes* stockAttr, MomentumAttributes* system)
 {
-  int i, stockId;
-  double summation;
+  int stockId;
   StockHistory* history;
+
+  stockId = stock->StockId;
+  history = GetStockHistoryById (stockId);
+
+  GetStockMomentum (stock, history, stockAttr, system);
+  GraphStock (stock, history);
+
+  CleanseStockHistory (history);
+}
+
+static void GetStockMomentum (Stock* stock, StockHistory* history, StockMomentumAttributes* stockAttr, MomentumAttributes* system)
+{
+  int i;
+  double summation;
   StockData *child, *parent;
   Momentum* currMomentum = NULL;
 
   summation = 0;
-  stockId = stock->StockId;
-  history = GetStockHistoryById (stockId);
+
   for (i=0; i<history->Count; i++)
   {
     child = &history->Data[i];
@@ -101,6 +120,24 @@ static void GetStockMomentum (Stock* stock, StockMomentumAttributes* stockAttr, 
   }
 
   printf ("Stock: %-10s Avg.Momentum: %.2f\n", stock->Ticker, (summation / history->Count));
-  CleanseStockHistory (history);
-  //sleep (1);
+}
+
+static void GraphStock (Stock* stock, StockHistory* history)
+{
+  char* ticker, *fileName;
+  const char* fileFormat = "%s.svg";
+  DbPlotSet* stockPlot; 
+  DbGraph* stockGraph;
+
+  // Set the File Name
+  ticker = stock->Ticker;
+  fileName = malloc (strlen (ticker) + strlen (fileFormat) -2 +1);
+  sprintf (fileName, fileFormat, ticker);
+
+  stockPlot = PLOT_SET (history, Close, StockData);
+  stockGraph = GRAPH (stockPlot);
+
+  CreateGraphFile (stockGraph, fileName);
+
+  CleanseGraph (stockGraph);
 }

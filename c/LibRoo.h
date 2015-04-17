@@ -1,6 +1,9 @@
 #ifndef LIB_ROO_H
 #define LIB_ROO_H 1
 
+// Only works for integer values.
+#define NUM_ARGS(...) ((sizeof ((void*[]){0, ##__VA_ARGS__}) / sizeof (void*)) -1)
+
 typedef enum
 {
   Message = 0x00,
