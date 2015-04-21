@@ -12,42 +12,35 @@ static double GetRequiredSpeed (double intialSpeed, double mass, double turnRati
 static double GetBreakForce (double initialSpeed, double mass, double adjustedSpeed, MomentumAttributes* system);
 static double GetAdjustedSpeed (double initialSpeed, double requiredSpeed, double breakForce, double traction, MomentumAttributes* system);
 
-static Momentum* Blossom (Momentum* inertial, double mass, double direction, MomentumAttributes* system);
-
-
 // Implementation of Momentum.h
-void HaltMomentum (Momentum* green)
+void SetMomentum (Momentum* prodigy, MomentumTangents tangents, double magnitude)
 {
-  free (green);
-}
+  prodigy->Mass = tangents.Mass;
+  prodigy->Velocity.Direction = tangents.Direction;
 
-Momentum* NewMomentum (double mass, double magnitude, double direction)
-{
-  Momentum* prodigy;
-  prodigy = malloc (sizeof (Momentum));
-
-  prodigy->Mass = mass;
   prodigy->Velocity.Magnitude = magnitude;
-  prodigy->Velocity.Direction = direction;
-
-  return prodigy;
 }
 
-Momentum* ApplyMomentum (Momentum* inertial, double mass, double direction, MomentumAttributes* system)
+void ApplyMomentum (Momentum* inertial, Momentum* prodigy, MomentumTangents tangents, MomentumAttributes* system)
 {
-  Momentum* prodigy;
+  double requiredTurn, turnRatio, breakForce, requiredSpeed;
+  double traction, initialSpeed, speed;
 
-  prodigy = Blossom (inertial, mass, direction, system);
+  traction = GetTraction (inertial, system);
+  initialSpeed = inertial->Velocity.Magnitude;
 
-  HaltMomentum (inertial);
-  return prodigy;
+  turnRatio = GetTurnRatio (inertial->Velocity.Direction, tangents.Direction);
+  requiredSpeed = GetRequiredSpeed (initialSpeed, tangents.Mass, turnRatio, traction);
+  breakForce = GetBreakForce (initialSpeed, tangents.Mass, requiredSpeed, system);
+  speed = GetAdjustedSpeed (initialSpeed, requiredSpeed, breakForce, traction, system);
+
+  SetMomentum (prodigy, tangents, speed);
 }
 
 void CleanseMomentumAttributes (MomentumAttributes* system)
 {
   free (system);
 }
-
 
 MomentumAttributes* NewMomentumAttributes (double tCoefficient, double lCoefficient, double gravity, 
   double airDensity, double angleOfAttack, double vehicleAspectRatio, double vehicleDensity, double acceleration)
@@ -67,7 +60,8 @@ MomentumAttributes* NewMomentumAttributes (double tCoefficient, double lCoeffici
   return system;
 }
 
-MomentumHistory* NewMomentumHistory (DbCollection* collection, MomentumTranslator translator)
+MomentumHistory* NewMomentumHistory (DbCollection* collection, int structSize, MomentumInitializor init,
+  TangentalOperator tangental, void* attributes, MomentumAttributes* system)
 {
   int i, count;
   MomentumHistory* history;
@@ -76,31 +70,25 @@ MomentumHistory* NewMomentumHistory (DbCollection* collection, MomentumTranslato
   history = malloc (sizeof (MomentumHistory));
   history->Count = count;
   history->Momentums = malloc (sizeof (Momentum) * count);
-
   
-
-  /*
-  int i, count;
-  void *child, *parent;
-  Momentum* currMomentum = NULL;
-
-  MomentumHistory history;
-
-  count = collection->Count;
-  history = malloc (sizeof (MomentumHistory));
-  history->Count = count;
-  history->Momentums = malloc (sizeof (Momentum) * count);
-
-  for (i=0; i<count; i++)
+  init (history->Momentums, collection->Data, attributes);
+  for (i=1; i<count; i++)
   {
-    child = &collection->Data[i];
-    currMomentum = (currMomentum == NULL)
-      ? NewStockMomentum (child, stockAttr)
-      : ApplyStockMomentum (currMomentum, parent, child, stockAttr, system);
+    void *childDatum, *parentDatum;
+    Momentum *inertial, *prodigy;
+    MomentumTangents tangents;
+  
+    parentDatum = collection->Data + (structSize * (i-1));
+    childDatum = collection->Data + (structSize * i);
 
-    parent = child;
+    inertial = &history->Momentums[i-1];
+    prodigy = &history->Momentums[i];
+
+    tangents = tangental (parentDatum, childDatum, attributes);
+    ApplyMomentum (inertial, prodigy, tangents, system);
   }
-  */
+
+  return history;
 }
 
 void CleanseMomentumHistory (MomentumHistory* history)
@@ -112,22 +100,6 @@ void CleanseMomentumHistory (MomentumHistory* history)
 }
 
 // Static Functions
-static Momentum* Blossom (Momentum* inertial, double mass, double direction, MomentumAttributes* system)
-{
-  double requiredTurn, turnRatio, breakForce, requiredSpeed;
-  double traction, initialSpeed, speed;
-
-  traction = GetTraction (inertial, system);
-  initialSpeed = inertial->Velocity.Magnitude;
-
-  turnRatio = GetTurnRatio (inertial->Velocity.Direction, direction);
-  requiredSpeed = GetRequiredSpeed (initialSpeed, mass, turnRatio, traction);
-  breakForce = GetBreakForce (initialSpeed, mass, requiredSpeed, system);
-  speed = GetAdjustedSpeed (initialSpeed, requiredSpeed, breakForce, traction, system);
-
-  return NewMomentum (mass, speed, direction);
-}
-
 static double GetTraction (Momentum* inertial, MomentumAttributes* system)
 {
   double traction;

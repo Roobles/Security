@@ -8,33 +8,13 @@
 #define STOCK_PRICE(stockVar) GetStockAttribute (stockVar, stockAttr->Price)
 
 static double GetMassFromStock (StockData* stock, StockMomentumAttributes* stockAttr);
+static void InitializeMomentum (Momentum* momentum, StockData* datum, StockMomentumAttributes* stockAttr);
+static MomentumTangents StockMomentumTangents (StockData* parentStock, StockData* childStock, StockMomentumAttributes* stockAttr);
 
 // StockMomentum.h implementation
-Momentum* NewStockMomentum (StockData* stock, StockMomentumAttributes* stockAttr)
+MomentumHistory* NewStockMomentumHistory (StockHistory* stockHistory, MomentumAttributes* system, StockMomentumAttributes* stockAttr)
 {
-  double mass, magnitude, direction;
-  Momentum* prodigy;
-
-  direction = stockAttr->InitialDirection;
-  magnitude = stockAttr->InitialMagnitude;
-  mass = GetMassFromStock (stock, stockAttr);
-
-  prodigy = malloc (sizeof (Momentum));
-  prodigy->Mass = mass;
-  prodigy->Velocity.Direction = direction;
-  prodigy->Velocity.Magnitude = magnitude;
-
-  return prodigy;
-}
-
-Momentum* ApplyStockMomentum (Momentum* inertial, StockData* parent, StockData* child, StockMomentumAttributes* stockAttr, MomentumAttributes* system)
-{
-  double mass, direction;
-
-  mass = GetMassFromStock (child, stockAttr);
-  direction = STOCK_PRICE (child) - STOCK_PRICE (parent);
-
-  return ApplyMomentum (inertial, mass, direction, system);
+  return MOMENTUM_HISTORY (stockHistory, StockData, InitializeMomentum, StockMomentumTangents, stockAttr, system);
 }
 
 StockMomentumAttributes* NewStockMomentumAttributes (double mCoefficient, double baseWeight, double initialDirection, double initialMagnitude, StockAttribute price)
@@ -69,4 +49,27 @@ static double GetMassFromStock (StockData* stock, StockMomentumAttributes* stock
   mass = (log (price) * mCoefficient) + baseWeight;
 
   return mass;
+}
+
+static void InitializeMomentum (Momentum* momentum, StockData* datum, StockMomentumAttributes* stockAttr)
+{
+  double mass, magnitude, direction;
+
+  direction = stockAttr->InitialDirection;
+  magnitude = stockAttr->InitialMagnitude;
+  mass = GetMassFromStock (datum, stockAttr);
+
+  momentum->Velocity.Direction = direction;
+  momentum->Velocity.Magnitude = magnitude;
+  momentum->Mass = mass;
+}
+
+static MomentumTangents StockMomentumTangents (StockData* parentStock, StockData* childStock, StockMomentumAttributes* stockAttr)
+{
+  MomentumTangents tangents;
+
+  tangents.Mass = GetMassFromStock (childStock, stockAttr);
+  tangents.Direction =  STOCK_PRICE (childStock) - STOCK_PRICE (parentStock);
+
+  return tangents;
 }

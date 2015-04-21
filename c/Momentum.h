@@ -3,6 +3,11 @@
 
 #include "DbUtils.h"
 
+typedef struct
+{
+  double Mass;
+  double Direction;
+} MomentumTangents;
 
 typedef struct
 {
@@ -39,20 +44,22 @@ typedef struct
 
 } MomentumAttributes;
 
-typedef Momentum* (*MomentumTranslator)(void* datum, void* attributes);
+typedef void (*MomentumInitializor)(Momentum* momentum, void* datum, void* attributes);
+typedef MomentumTangents (*TangentalOperator)(void* parentDatum, void* childDatum, void* attributes);
 
-void HaltMomentum (Momentum* green);
-Momentum* NewMomentum (double mass, double magnitude, double direction);
-Momentum* ApplyMomentum (Momentum* inertial, double mass, double direction, MomentumAttributes* system);
+void SetMomentum (Momentum* prodigy, MomentumTangents tangents, double magnitude);
+void ApplyMomentum (Momentum* inertial, Momentum* prodigy, MomentumTangents tangents, MomentumAttributes* system);
 
 void CleanseMomentumAttributes (MomentumAttributes* system);
 MomentumAttributes* NewMomentumAttributes (double tCoefficient, double lCoefficient, double gravity, 
   double airDensity, double angleOfAttack, double vehicleAspectRatio, double vehicleDensity, double acceleration);
 
-#define MOMENTUM_HISTORY(collection, ordinal, type) \
-  NewPlotSet(sizeof (type), ordinal * sizeof (double), (DbCollection*) collection);
+#define MOMENTUM_HISTORY(collection, type, init, tangental, attributes, system)               \
+  NewMomentumHistory ((DbCollection*) collection, sizeof (type), (MomentumInitializor) init,  \
+  (TangentalOperator) tangental, (void*) attributes, system);
 
-MomentumHistory* NewMomentumHistory (DbCollection* collection, MomentumTranslator translator);
+MomentumHistory* NewMomentumHistory (DbCollection* collection, int structSize, MomentumInitializor init,
+  TangentalOperator tangental, void* attributes, MomentumAttributes* system);
 
 void CleanseMomentumHistory (MomentumHistory* history);
 

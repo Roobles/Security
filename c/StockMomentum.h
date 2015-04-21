@@ -16,8 +16,7 @@ typedef struct
 
 } StockMomentumAttributes;
 
-Momentum* NewStockMomentum (StockData* stock, StockMomentumAttributes* stockAttr);
-Momentum* ApplyStockMomentum (Momentum* inertial, StockData* parent, StockData* child, StockMomentumAttributes* stockAttr, MomentumAttributes* system);
+MomentumHistory* NewStockMomentumHistory (StockHistory* stockHistory, MomentumAttributes* system, StockMomentumAttributes* stockAttr);
 
 StockMomentumAttributes* NewStockMomentumAttributes (double mCoefficient, double baseWeight, double initialDirection, double initialMagnitude, StockAttribute price);
 void CleanseStockMomentumAttributes (StockMomentumAttributes* stockAttr);

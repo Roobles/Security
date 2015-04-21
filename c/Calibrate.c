@@ -17,7 +17,7 @@ static DbGraphParams* GetDbGraphParams ();
 static void SetDb (char* user, char* pass);
 static void ProcessStock (Stock* stock, StockMomentumAttributes* stockAttr, MomentumAttributes* system, DbGraphParams* graphParams);
 static MomentumHistory* GetStockMomentum (Stock* stock, StockHistory* history, StockMomentumAttributes* stockAttr, MomentumAttributes* system);
-static void GraphStock (Stock* stock, StockHistory* history, DbGraphParams* params);
+static void GraphStock (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, DbGraphParams* params);
 
 int main (int argc, char** argv)
 {
@@ -133,43 +133,24 @@ static void SetDb (char* user, char* pass)
 static void ProcessStock (Stock* stock, StockMomentumAttributes* stockAttr, MomentumAttributes* system, DbGraphParams *graphParams)
 {
   int stockId;
-  StockHistory* history;
+  StockHistory* stockHistory;
+  MomentumHistory* momentumHistory;
 
   stockId = stock->StockId;
-  history = GetStockHistoryById (stockId);
+  stockHistory = GetStockHistoryById (stockId);
+  momentumHistory = NewStockMomentumHistory (stockHistory, system, stockAttr);
 
-  GetStockMomentum (stock, history, stockAttr, system);
-  GraphStock (stock, history, graphParams);
+  GraphStock (stock, stockHistory, momentumHistory, graphParams);
 
-  CleanseStockHistory (history);
+  CleanseStockHistory (stockHistory);
+  CleanseMomentumHistory (momentumHistory);
 }
 
-static MomentumHistory* GetStockMomentum (Stock* stock, StockHistory* history, StockMomentumAttributes* stockAttr, MomentumAttributes* system)
-{
-  int i;
-  double summation;
-  StockData *child, *parent;
-  Momentum* currMomentum = NULL;
-
-  summation = 0;
-
-  for (i=0; i<history->Count; i++)
-  {
-    child = &history->Data[i];
-    currMomentum = (currMomentum == NULL)
-      ? NewStockMomentum (child, stockAttr)
-      : ApplyStockMomentum (currMomentum, parent, child, stockAttr, system);
-
-    summation += (currMomentum->Velocity.Magnitude * currMomentum->Mass);
-    parent = child;
-  }
-}
-
-static void GraphStock (Stock* stock, StockHistory* history, DbGraphParams* params)
+static void GraphStock (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, DbGraphParams* params)
 {
   char* ticker, *fileName;
   const char* fileFormat = "%s.%s";
-  DbPlotSet* stockPlot; 
+  DbPlotSet *stockPlot, *momentumPlot; 
   DbGraph* stockGraph;
 
   // Set the File Name
@@ -177,8 +158,10 @@ static void GraphStock (Stock* stock, StockHistory* history, DbGraphParams* para
   fileName = malloc (strlen (ticker) + strlen (fileFormat) + strlen (params->Type) -4 +1);
   sprintf (fileName, fileFormat, ticker, params->Type);
 
-  stockPlot = PLOT_SET (history, Close, StockData);
-  stockGraph = GRAPH (stockPlot);
+  stockPlot = PLOT_SET (stockHistory, Close, StockData);
+  momentumPlot = PLOT_SET (momentumHistory, 0, Momentum);
+  
+  stockGraph = GRAPH (stockPlot, momentumPlot);
 
   CreateGraphFile (stockGraph, fileName, params);
 
