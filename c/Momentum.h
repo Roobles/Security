@@ -1,41 +1,59 @@
 #ifndef MOMENTUM_H
 #define MOMENTUM_H 1
 
+#include "DbUtils.h"
+
+
 typedef struct
 {
-  float Magnitude;
-  float Direction;
+  double Magnitude;
+  double Direction;
 } Vector;
 
 typedef struct
 {
   Vector Velocity;
-  float Mass;
+  double Mass;
 } Momentum;
+
+typedef struct
+{
+  unsigned int Count;
+  Momentum* Momentums;
+} MomentumHistory;
 
 typedef struct 
 {
-  float TractionCoefficient;
-  float LiftCoefficient;
+  double TractionCoefficient;
+  double LiftCoefficient;
 
-  float Gravity;
-  float AirDensity;
-  float AngleOfAttack;
+  double Gravity;
+  double AirDensity;
+  double AngleOfAttack;
 
   // Height = Width. Length = (Height * AspectRatio)
-  float VehicleAspectRatio;
-  float VehicleDensity;
+  double VehicleAspectRatio;
+  double VehicleDensity;
 
-  float Acceleration;
+  double Acceleration;
 
 } MomentumAttributes;
 
+typedef Momentum* (*MomentumTranslator)(void* datum, void* attributes);
+
 void HaltMomentum (Momentum* green);
-Momentum* NewMomentum (float mass, float magnitude, float direction);
-Momentum* ApplyMomentum (Momentum* inertial, float mass, float direction, MomentumAttributes* system);
+Momentum* NewMomentum (double mass, double magnitude, double direction);
+Momentum* ApplyMomentum (Momentum* inertial, double mass, double direction, MomentumAttributes* system);
 
 void CleanseMomentumAttributes (MomentumAttributes* system);
-MomentumAttributes* NewMomentumAttributes (float tCoefficient, float lCoefficient, float gravity, 
-  float airDensity, float angleOfAttack, float vehicleAspectRatio, float vehicleDensity, float acceleration);
+MomentumAttributes* NewMomentumAttributes (double tCoefficient, double lCoefficient, double gravity, 
+  double airDensity, double angleOfAttack, double vehicleAspectRatio, double vehicleDensity, double acceleration);
+
+#define MOMENTUM_HISTORY(collection, ordinal, type) \
+  NewPlotSet(sizeof (type), ordinal * sizeof (double), (DbCollection*) collection);
+
+MomentumHistory* NewMomentumHistory (DbCollection* collection, MomentumTranslator translator);
+
+void CleanseMomentumHistory (MomentumHistory* history);
 
 #endif

@@ -10,9 +10,9 @@ typedef enum
 
 typedef struct 
 {
-  float High;
-  float Low;
-  float Close;
+  double High;
+  double Low;
+  double Close;
 
   unsigned int StockId;
   unsigned int StockDataId;
@@ -30,6 +30,6 @@ StockHistory* GetStockHistory (char* where);
 StockHistory* GetStockHistoryById (int stockId);
 void CleanseStockHistory (StockHistory* history);
 void PrintStockHistory (StockHistory* history);
-float GetStockAttribute (StockData* stock, StockAttribute attribute);
+double GetStockAttribute (StockData* stock, StockAttribute attribute);
 
 #endif

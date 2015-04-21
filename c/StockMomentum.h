@@ -6,11 +6,11 @@
 
 typedef struct
 {
-  float MassCoefficient;
-  float BaseWeight;
+  double MassCoefficient;
+  double BaseWeight;
 
-  float InitialDirection;
-  float InitialMagnitude;
+  double InitialDirection;
+  double InitialMagnitude;
 
   StockAttribute Price;
 
@@ -19,7 +19,7 @@ typedef struct
 Momentum* NewStockMomentum (StockData* stock, StockMomentumAttributes* stockAttr);
 Momentum* ApplyStockMomentum (Momentum* inertial, StockData* parent, StockData* child, StockMomentumAttributes* stockAttr, MomentumAttributes* system);
 
-StockMomentumAttributes* NewStockMomentumAttributes (float mCoefficient, float baseWeight, float initialDirection, float initialMagnitude, StockAttribute price);
+StockMomentumAttributes* NewStockMomentumAttributes (double mCoefficient, double baseWeight, double initialDirection, double initialMagnitude, StockAttribute price);
 void CleanseStockMomentumAttributes (StockMomentumAttributes* stockAttr);
 
 #endif

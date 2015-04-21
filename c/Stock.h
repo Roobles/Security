@@ -28,6 +28,9 @@ typedef struct
   char* Filter;
 } StockCollection;
 
+StockCollection* GetStockById (int id);
 StockCollection* GetStocks (char* where);
+
 void CleanseStocks (StockCollection* stocks);
+void CleanseStock (Stock* stock);
 #endif 

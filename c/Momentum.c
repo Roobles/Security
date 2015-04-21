@@ -3,16 +3,16 @@
 #include <mysql.h>
 #include "Momentum.h"
 
-static float GetTraction (Momentum* inertial, MomentumAttributes* system);
-static float GetDownforceMass (float mass, float magnitude, MomentumAttributes* system);
-static float GetWeight (float mass, MomentumAttributes* system);
+static double GetTraction (Momentum* inertial, MomentumAttributes* system);
+static double GetDownforceMass (double mass, double magnitude, MomentumAttributes* system);
+static double GetWeight (double mass, MomentumAttributes* system);
 
-static float GetTurnRatio (float direction, float targetDirection);
-static float GetRequiredSpeed (float intialSpeed, float mass, float turnRatio, float traction);
-static float GetBreakForce (float initialSpeed, float mass, float adjustedSpeed, MomentumAttributes* system);
-static float GetAdjustedSpeed (float initialSpeed, float requiredSpeed, float breakForce, float traction, MomentumAttributes* system);
+static double GetTurnRatio (double direction, double targetDirection);
+static double GetRequiredSpeed (double intialSpeed, double mass, double turnRatio, double traction);
+static double GetBreakForce (double initialSpeed, double mass, double adjustedSpeed, MomentumAttributes* system);
+static double GetAdjustedSpeed (double initialSpeed, double requiredSpeed, double breakForce, double traction, MomentumAttributes* system);
 
-static Momentum* Blossom (Momentum* inertial, float mass, float direction, MomentumAttributes* system);
+static Momentum* Blossom (Momentum* inertial, double mass, double direction, MomentumAttributes* system);
 
 
 // Implementation of Momentum.h
@@ -21,7 +21,7 @@ void HaltMomentum (Momentum* green)
   free (green);
 }
 
-Momentum* NewMomentum (float mass, float magnitude, float direction)
+Momentum* NewMomentum (double mass, double magnitude, double direction)
 {
   Momentum* prodigy;
   prodigy = malloc (sizeof (Momentum));
@@ -33,7 +33,7 @@ Momentum* NewMomentum (float mass, float magnitude, float direction)
   return prodigy;
 }
 
-Momentum* ApplyMomentum (Momentum* inertial, float mass, float direction, MomentumAttributes* system)
+Momentum* ApplyMomentum (Momentum* inertial, double mass, double direction, MomentumAttributes* system)
 {
   Momentum* prodigy;
 
@@ -49,8 +49,8 @@ void CleanseMomentumAttributes (MomentumAttributes* system)
 }
 
 
-MomentumAttributes* NewMomentumAttributes (float tCoefficient, float lCoefficient, float gravity, 
-  float airDensity, float angleOfAttack, float vehicleAspectRatio, float vehicleDensity, float acceleration)
+MomentumAttributes* NewMomentumAttributes (double tCoefficient, double lCoefficient, double gravity, 
+  double airDensity, double angleOfAttack, double vehicleAspectRatio, double vehicleDensity, double acceleration)
 {
   MomentumAttributes* system;
 
@@ -67,11 +67,55 @@ MomentumAttributes* NewMomentumAttributes (float tCoefficient, float lCoefficien
   return system;
 }
 
-// Static Functions
-static Momentum* Blossom (Momentum* inertial, float mass, float direction, MomentumAttributes* system)
+MomentumHistory* NewMomentumHistory (DbCollection* collection, MomentumTranslator translator)
 {
-  float requiredTurn, turnRatio, breakForce, requiredSpeed;
-  float traction, initialSpeed, speed;
+  int i, count;
+  MomentumHistory* history;
+
+  count = collection->Count;
+  history = malloc (sizeof (MomentumHistory));
+  history->Count = count;
+  history->Momentums = malloc (sizeof (Momentum) * count);
+
+  
+
+  /*
+  int i, count;
+  void *child, *parent;
+  Momentum* currMomentum = NULL;
+
+  MomentumHistory history;
+
+  count = collection->Count;
+  history = malloc (sizeof (MomentumHistory));
+  history->Count = count;
+  history->Momentums = malloc (sizeof (Momentum) * count);
+
+  for (i=0; i<count; i++)
+  {
+    child = &collection->Data[i];
+    currMomentum = (currMomentum == NULL)
+      ? NewStockMomentum (child, stockAttr)
+      : ApplyStockMomentum (currMomentum, parent, child, stockAttr, system);
+
+    parent = child;
+  }
+  */
+}
+
+void CleanseMomentumHistory (MomentumHistory* history)
+{
+  history->Count = 0;
+  
+  tryfree (history->Momentums);
+  tryfree (history);
+}
+
+// Static Functions
+static Momentum* Blossom (Momentum* inertial, double mass, double direction, MomentumAttributes* system)
+{
+  double requiredTurn, turnRatio, breakForce, requiredSpeed;
+  double traction, initialSpeed, speed;
 
   traction = GetTraction (inertial, system);
   initialSpeed = inertial->Velocity.Magnitude;
@@ -84,11 +128,11 @@ static Momentum* Blossom (Momentum* inertial, float mass, float direction, Momen
   return NewMomentum (mass, speed, direction);
 }
 
-static float GetTraction (Momentum* inertial, MomentumAttributes* system)
+static double GetTraction (Momentum* inertial, MomentumAttributes* system)
 {
-  float traction;
-  float mass, magnitude, tCoefficient;
-  float totalMass, downforceMass, weight;
+  double traction;
+  double mass, magnitude, tCoefficient;
+  double totalMass, downforceMass, weight;
 
   // F(N) = L x Cf
   // F  *is* Traction Force
@@ -109,12 +153,12 @@ static float GetTraction (Momentum* inertial, MomentumAttributes* system)
   return traction;
 }
 
-static float GetDownforceMass (float mass, float magnitude, MomentumAttributes* system)
+static double GetDownforceMass (double mass, double magnitude, MomentumAttributes* system)
 {
-  float vehicleDensity, aspectRatio; 
-  float vehicleVolume, vehicleLength, vehicleHeight, vehicleWidth, wingHeight;
-  float angleOfAttack, lCoefficient, gCoefficient, airDensity;
-  float downforce;
+  double vehicleDensity, aspectRatio; 
+  double vehicleVolume, vehicleLength, vehicleHeight, vehicleWidth, wingHeight;
+  double angleOfAttack, lCoefficient, gCoefficient, airDensity;
+  double downforce;
 
   // Retrieve system variables.
   airDensity = system->AirDensity;
@@ -144,21 +188,21 @@ static float GetDownforceMass (float mass, float magnitude, MomentumAttributes* 
   return downforce / gCoefficient;
 }
 
-static float GetWeight (float mass, MomentumAttributes* system)
+static double GetWeight (double mass, MomentumAttributes* system)
 {
-  float gCoefficient;
+  double gCoefficient;
   
   gCoefficient = system->Gravity;
   return mass * gCoefficient;
 }
 
-static float GetTurnRatio (float direction, float targetDirection)
+static double GetTurnRatio (double direction, double targetDirection)
 {
-  float inside, outside, target, maxDegree, pi;
+  double inside, outside, target, maxDegree, pi;
 
   // angle = ^tan (theta)
   // theta = (m1 - m2) / (1 + m1*m2)
-  float m1, m2, theta;
+  double m1, m2, theta;
   m1 = direction;
   m2 = targetDirection;
 
@@ -177,7 +221,7 @@ static float GetTurnRatio (float direction, float targetDirection)
   return target / maxDegree;
 }
 
-static float GetRequiredSpeed (float initialSpeed, float mass, float turnRatio, float traction)
+static double GetRequiredSpeed (double initialSpeed, double mass, double turnRatio, double traction)
 {
   // momentum = speed * mass
   // turnForce = momentum * turnRatio
@@ -187,8 +231,8 @@ static float GetRequiredSpeed (float initialSpeed, float mass, float turnRatio, 
   // traction <= speed * mass * turnRatio
   // speed = traction / (mass * turnRatio);
 
-  float turnForce, speed, momentum;
-  float breakAmmount, acceleration;
+  double turnForce, speed, momentum;
+  double breakAmmount, acceleration;
 
   speed = initialSpeed;
   momentum = speed * mass;
@@ -201,16 +245,16 @@ static float GetRequiredSpeed (float initialSpeed, float mass, float turnRatio, 
   return speed;
 }
 
-static float GetBreakForce (float initialSpeed, float mass, float adjustedSpeed, MomentumAttributes* system)
+static double GetBreakForce (double initialSpeed, double mass, double adjustedSpeed, MomentumAttributes* system)
 {
   // TODO: Implement this.
   return 0;
 }
 
-static float GetAdjustedSpeed (float initialSpeed, float requiredSpeed, float breakForce, float traction, MomentumAttributes* system)
+static double GetAdjustedSpeed (double initialSpeed, double requiredSpeed, double breakForce, double traction, MomentumAttributes* system)
 {
   // TODO: Implement this.
-  float accelleration;
+  double accelleration;
   accelleration = 10;
   
   // TODO: No.  Seriously.  Do this.

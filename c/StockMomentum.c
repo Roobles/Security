@@ -7,12 +7,12 @@
 
 #define STOCK_PRICE(stockVar) GetStockAttribute (stockVar, stockAttr->Price)
 
-static float GetMassFromStock (StockData* stock, StockMomentumAttributes* stockAttr);
+static double GetMassFromStock (StockData* stock, StockMomentumAttributes* stockAttr);
 
 // StockMomentum.h implementation
 Momentum* NewStockMomentum (StockData* stock, StockMomentumAttributes* stockAttr)
 {
-  float mass, magnitude, direction;
+  double mass, magnitude, direction;
   Momentum* prodigy;
 
   direction = stockAttr->InitialDirection;
@@ -29,7 +29,7 @@ Momentum* NewStockMomentum (StockData* stock, StockMomentumAttributes* stockAttr
 
 Momentum* ApplyStockMomentum (Momentum* inertial, StockData* parent, StockData* child, StockMomentumAttributes* stockAttr, MomentumAttributes* system)
 {
-  float mass, direction;
+  double mass, direction;
 
   mass = GetMassFromStock (child, stockAttr);
   direction = STOCK_PRICE (child) - STOCK_PRICE (parent);
@@ -37,7 +37,7 @@ Momentum* ApplyStockMomentum (Momentum* inertial, StockData* parent, StockData* 
   return ApplyMomentum (inertial, mass, direction, system);
 }
 
-StockMomentumAttributes* NewStockMomentumAttributes (float mCoefficient, float baseWeight, float initialDirection, float initialMagnitude, StockAttribute price)
+StockMomentumAttributes* NewStockMomentumAttributes (double mCoefficient, double baseWeight, double initialDirection, double initialMagnitude, StockAttribute price)
 {
   StockMomentumAttributes* stockAttr;
   
@@ -56,10 +56,10 @@ void CleanseStockMomentumAttributes (StockMomentumAttributes* stockAttr)
 }
 
 // Static Functions
-static float GetMassFromStock (StockData* stock, StockMomentumAttributes* stockAttr)
+static double GetMassFromStock (StockData* stock, StockMomentumAttributes* stockAttr)
 {
-  float mass, price;
-  float baseWeight, mCoefficient;
+  double mass, price;
+  double baseWeight, mCoefficient;
 
   baseWeight = stockAttr->BaseWeight;
   mCoefficient = stockAttr->MassCoefficient;

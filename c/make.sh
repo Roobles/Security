@@ -21,6 +21,7 @@ C_FILES+=(LibRoo.c)
 L_LINKS=()
 L_LINKS+=(m)
 L_LINKS+=(mysqlclient)
+L_LINKS+=(plot)
 
 I_INCLUDES=()
 I_INCLUDES+=(/usr/include/mysql)

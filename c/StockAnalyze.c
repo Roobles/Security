@@ -8,7 +8,7 @@ int main (int argc, char** argv)
   StockMomentumAttributes* stockAttr;
 
   // Setting values.
-  float mCoefficient, baseWeight, initialDir, initialMag;
+  double mCoefficient, baseWeight, initialDir, initialMag;
   StockAttribute price;
 
   mCoefficient = 10;

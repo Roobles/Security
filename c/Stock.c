@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <mysql.h>
 
@@ -10,6 +11,15 @@
 static void SetStock (Stock* stock, MYSQL_ROW* row);
 
 // Stock.h Implementation
+StockCollection* GetStockById (int id)
+{
+  char where[32];
+  const char* whereFmt = "stk.StockId = %d";
+  
+  sprintf (where, whereFmt, id);
+  return GetStocks (where);
+}
+
 StockCollection* GetStocks (char* where)
 {
   StockCollection* stocks;
@@ -32,6 +42,7 @@ void CleanseStocks (StockCollection* stocks)
   free (stocks->Data);
   free (stocks);
 }
+
 
 // Static Functions
 static void SetStock (Stock* stock, MYSQL_ROW* row)

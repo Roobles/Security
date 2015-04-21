@@ -59,11 +59,11 @@ void PrintStockHistory (StockHistory* history)
     PrintStockData (&history->Data[i]);
 }
 
-float GetStockAttribute (StockData* stock, StockAttribute attribute)
+double GetStockAttribute (StockData* stock, StockAttribute attribute)
 {
-  float* stockAttributes;
+  double* stockAttributes;
 
-  stockAttributes = (float*) stock;
+  stockAttributes = (double*) stock;
   return stockAttributes[attribute];
 }
 
