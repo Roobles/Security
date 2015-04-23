@@ -14,6 +14,8 @@ typedef struct
   int Red;
   int Green;
   int Blue;
+  double Weight;
+  char Color[8];
 } DbPlotColor;
 
 typedef struct
@@ -37,6 +39,7 @@ typedef struct
 
   double BoxWidth;
   DbPlotColor BoxColor;
+  DbPlotColor FillColor;
 } DbGraphParams;
 
 typedef struct
@@ -64,9 +67,10 @@ typedef struct
 
 DbPlotSet* NewPlotSet (int structSize, int offset, DbCollection* collection);
 DbGraph* NewGraph (int plots, ...);
+DbPlotColor NewColor (int red, int green, int blue, double weight);
 
-DbGraphParams* NewGraphParams (const char* type, double width, double height, double padding, double margin,
-  double dpi, double lineWidth, DbPlotPalette* lineColors, double boxWidth, DbPlotColor boxColor);
+DbGraphParams* NewGraphParams (const char* type, double width, double height, double padding,
+  double margin, double dpi, DbPlotPalette* lineColors, DbPlotColor boxColor, DbPlotColor fillColor);
 
 void CreateGraphFile (DbGraph* graph, const char* file, DbGraphParams* params);
 

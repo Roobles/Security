@@ -85,13 +85,14 @@ static StockMomentumAttributes* GetStockMomentumAttributes ()
   return NewStockMomentumAttributes (mCoefficient, baseWeight, initialDirection, initialMagnitude, price);
 }
 
-#define SET_COLOR(ordinal, red, green, blue) colors[ordinal] = PLOT_COLOR (red, green, blue)
+#define SET_COLOR(ordinal, red, green, blue, weight) colors[ordinal] = NewColor (red, green, blue, weight)
+#define SET_COLOR_D(ordinal, red, green, blue) SET_COLOR (ordinal, red, green, blue, lineWidth)
 static DbGraphParams* GetDbGraphParams ()
 {
   int colorCount;
   DbPlotPalette* lineColors;
   DbPlotColor* colors;
-  DbPlotColor boxColor;
+  DbPlotColor boxColor, fillColor;
   double width, height, padding, margin, dpi; 
   double lineWidth, boxWidth;
   const char* type = "svg";
@@ -103,7 +104,9 @@ static DbGraphParams* GetDbGraphParams ()
   dpi = 150;
   lineWidth = 0.5;
   boxWidth = 2;
-  boxColor = PLOT_COLOR (0x08, 0x17, 0x29); // 081729
+
+  boxColor = NewColor (0x08, 0x17, 0x29, boxWidth); // 081729
+  fillColor = NewColor (0xFF, 0xFF, 0xFD, 0); // F4F0EB
 
   lineColors = malloc (sizeof (DbPlotPalette));
 
@@ -112,13 +115,13 @@ static DbGraphParams* GetDbGraphParams ()
   lineColors->Colors = malloc (sizeof (DbPlotColor) * colorCount);
   colors = lineColors->Colors;
 
-  SET_COLOR (0, 0x85, 0x3A, 0x59); // #853A59
-  SET_COLOR (1, 0xF5, 0x79, 0x62); // #F57962
-  SET_COLOR (2, 0xBC, 0x9A, 0xD7); // #BC9AD7
-  SET_COLOR (3, 0xC4, 0x43, 0x5A); // #C4435A
+  SET_COLOR (0, 0x85, 0x3A, 0x59, 1); // #853A59
+  SET_COLOR_D (1, 0xF5, 0x79, 0x62); // #F57962
+  SET_COLOR_D (2, 0xBC, 0x9A, 0xD7); // #BC9AD7
+  SET_COLOR_D (3, 0xC4, 0x43, 0x5A); // #C4435A
 
   return NewGraphParams (type, width, height, padding,
-    margin, dpi, lineWidth, lineColors, boxWidth, boxColor);
+    margin, dpi, lineColors, boxColor, fillColor);
 }
 
 

@@ -15,8 +15,8 @@ static void DrawGraph (plPlotter* plotter, DbPlotSet* plots, DbPlotColor color, 
 static DbPlotCoordinate DrawGraphLine (plPlotter* plotter, DbPlotCoordinate last, DbPlotSet* points,
   int itter, double xUnitSize, double yUnitSize, double padding);
 
-DbGraphParams* NewGraphParams (const char* type, double width, double height, double padding, double margin,
-  double dpi, double lineWidth, DbPlotPalette* lineColors, double boxWidth, DbPlotColor boxColor)
+DbGraphParams* NewGraphParams (const char* type, double width, double height, double padding,
+  double margin, double dpi, DbPlotPalette* lineColors, DbPlotColor boxColor, DbPlotColor fillColor)
 {
   DbGraphParams* params;
 
@@ -27,10 +27,9 @@ DbGraphParams* NewGraphParams (const char* type, double width, double height, do
   params->Padding = padding;
   params->Margin = margin;
   params->DPI = dpi;
-  params->LineWidth = lineWidth;
   params->LineColors = lineColors;
-  params->BoxWidth = boxWidth;
   params->BoxColor = boxColor;
+  params->FillColor = fillColor;
 
   strcpy (params->Type, type);
 
@@ -107,6 +106,21 @@ DbGraph* NewGraph (int plots, ...)
   return graph;
 }
 
+DbPlotColor NewColor (int red, int green, int blue, double weight)
+{
+  DbPlotColor color;
+  const char* colorFmt = "#%02x%02x%02x";
+
+  color.Red = red;
+  color.Green = green;
+  color.Blue = blue;
+  color.Weight = weight;
+
+  sprintf (color.Color, colorFmt, red, green, blue);
+
+  return color;
+}
+
 void CreateGraphFile (DbGraph* graph, const char* file, DbGraphParams* params)
 {
   int i, j;
@@ -125,7 +139,7 @@ void CreateGraphFile (DbGraph* graph, const char* file, DbGraphParams* params)
 
 
   // Draw Graphs.
-  for (i=0; i<graph->Count; i++)
+  for (i=graph->Count -1; i>=0; i--)
     DrawGraph (plotter, graph->Sets[i], colors[i%colorCount], params);
     
   // Close up shop.
@@ -202,21 +216,26 @@ static void DrawBox (plPlotter* plotter, DbGraphParams* params)
 {
   double height, width;
   double margin, limit;
-  DbPlotColor color;
+  char colorStr[8];
+  DbPlotColor boxColor, fillColor;
 
   margin = params->Margin;
   height = params->Height - margin;
   width = params->Width - margin;
-  color = params->BoxColor;
+  boxColor = params->BoxColor;
+  fillColor = params->FillColor;
 
-  pl_flinewidth_r (plotter, params->BoxWidth);
-  pl_fillcolor_r (plotter, color.Red, color.Green, color.Blue);
-  pl_pencolor_r (plotter, color.Red, color.Green, color.Blue);
+  pl_flinewidth_r (plotter, boxColor.Weight);
+  pl_pencolorname_r (plotter, boxColor.Color);
+  pl_fillcolorname_r (plotter, fillColor.Color);
+  pl_filltype_r (plotter, 1);
 
   pl_fline_r (plotter, margin, margin, margin, height);
   pl_fline_r (plotter, margin, height, width, height);
   pl_fline_r (plotter, width, height, width, margin);
   pl_fline_r (plotter, width, margin, margin, margin);
+
+  pl_filltype_r (plotter, 0);
 }
 
 static void DrawGraph (plPlotter* plotter, DbPlotSet* plots, DbPlotColor color, DbGraphParams* params)
@@ -241,8 +260,8 @@ static void DrawGraph (plPlotter* plotter, DbPlotSet* plots, DbPlotColor color, 
   yUnitSize = ySpace / yDelta;
 
   // Set parameters.
-  pl_flinewidth_r (plotter, params->LineWidth);
-  pl_pencolor_r (plotter, color.Red, color.Green, color.Blue);
+  pl_flinewidth_r (plotter, color.Weight);
+  pl_pencolorname_r (plotter, color.Color);
 
   // Plot points.
   for (i=0; i<plots->Count; i++)
