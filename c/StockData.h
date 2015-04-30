@@ -24,6 +24,7 @@ typedef struct
 {
   unsigned int Count;
   StockData* Data;
+  char* Filter;
 } StockHistory;
 
 StockHistory* GetStockHistory (char* where);

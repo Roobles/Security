@@ -1,6 +1,7 @@
 # Generated Files
 sql/security_data.sql
 php/credentials.php
+c/scratch.c
 
 # General Files
 *.swp*

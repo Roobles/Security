@@ -32,7 +32,7 @@ StockMomentumAttributes* NewStockMomentumAttributes (double mCoefficient, double
 
 void CleanseStockMomentumAttributes (StockMomentumAttributes* stockAttr)
 {
-  free (stockAttr);
+  tryfree (stockAttr);
 }
 
 // Static Functions

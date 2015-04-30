@@ -7,22 +7,43 @@
 int dbSet = 0;
 DbConnectionSettings _dbConnection;
 
-static void CleanseDbConnectionSettings (DbConnectionSettings* settings);
-
 // Implementation of DbConnection.h
 DbConnectionSettings* GetDbConnectionSettings ()
 {
   return &_dbConnection;
 }
 
+#define DBCLEANSE(dbattr) tryfree (settings->dbattr);
+void CleanseDbConnectionSettings ()
+{
+  DbConnectionSettings* settings;
+  settings = GetDbConnectionSettings ();
+
+  if (dbSet)
+  {
+    trace ("Cleansing db connection settings.");
+    DBCLEANSE (Hostname);
+    DBCLEANSE (User);
+    DBCLEANSE (Password);
+    DBCLEANSE (Database);
+    DBCLEANSE (Socket);
+
+    settings->Port = 0;
+    settings->Flags = 0;
+
+    dbSet = 0;
+  }
+}
+
 #define DBCLONE(dbset,dbval) settings->dbset = strclone (dbval);
 void SetDbConnectionSettings (const char* host, const char* user, const char* password,
   const char* dbName, unsigned int port, const char* socket, unsigned long flag)
 {
-  trace ("Setting db connection settings.");
   DbConnectionSettings* settings;
   settings = GetDbConnectionSettings ();
-  CleanseDbConnectionSettings (settings); 
+
+  trace ("Setting db connection settings.");
+  CleanseDbConnectionSettings (); 
 
   DBCLONE (Hostname, host);
   DBCLONE (User, user);
@@ -39,7 +60,7 @@ void SetDbConnectionSettings (const char* host, const char* user, const char* pa
 #define ASSERT_DB_ASSET(asset,message) if (!asset) { error (message); CleanseDbConnection (conn); return NULL; }
 MYSQL* NewDbConnection()
 {
-  MYSQL* conn;
+  MYSQL* conn, *connected;
   DbConnectionSettings* settings;
   
   ASSERT_DB_ASSET (dbSet, "The database connection settings were never set.");
@@ -50,7 +71,7 @@ MYSQL* NewDbConnection()
   
   ASSERT_DB_ASSET (conn, "Error initializing database connection object.");
 
-  conn = mysql_real_connect (conn,
+  connected = mysql_real_connect (conn,
     settings->Hostname,
     settings->User,
     settings->Password,
@@ -59,9 +80,9 @@ MYSQL* NewDbConnection()
     settings->Socket,
     settings->Flags);
 
-  ASSERT_DB_ASSET (conn, "Error connection to the database.");
+  ASSERT_DB_ASSET (connected, "Error connection to the database.");
 
-  return conn;
+  return connected;
 }
 
 void CleanseDbConnection (MYSQL* conn)
@@ -71,19 +92,4 @@ void CleanseDbConnection (MYSQL* conn)
 
   trace ("Closing db connection object.");
   mysql_close (conn);
-}
-
-// Static functions
-#define FDBSET(dbset) if (settings->dbset != NULL) free (settings->dbset)
-static void CleanseDbConnectionSettings (DbConnectionSettings* settings)
-{
-  if (dbSet)
-  {
-    trace ("Cleansing old db connection settings.");
-    FDBSET (Hostname);
-    FDBSET (User);
-    FDBSET (Password);
-    FDBSET (Database);
-    FDBSET (Socket);
-  }
 }

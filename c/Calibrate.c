@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <unistd.h>
+#include <regex.h>
 
 #include "StockMomentum.h"
 #include "DbConnection.h"
@@ -13,50 +14,196 @@
 static MomentumAttributes* GetMomentumAttributes ();
 static StockMomentumAttributes* GetStockMomentumAttributes ();
 static DbGraphParams* GetDbGraphParams ();
-
 static void SetDb (char* user, char* pass);
-static void ProcessStock (Stock* stock, StockMomentumAttributes* stockAttr, MomentumAttributes* system, DbGraphParams* graphParams);
+
+#define DEFAULT_OUTPUT Console
+typedef enum
+{
+  Unknown = 0x0,
+  Console = 0x1,
+  Graph = 0x2
+} OutputType;
+
+typedef struct
+{
+  char* UserName;
+  char* Password;
+  int StockId;
+  int Detailed;
+
+  OutputType Output;
+  MomentumAttributes* System;
+  StockMomentumAttributes* StockAttributes;
+  DbGraphParams* GraphAttributes;
+} CalibrationArgs;
+
+typedef void (*DisplayFunction)(Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, CalibrationArgs* args);
+
+static void InitCalibrationArgs (CalibrationArgs* args);
+static void ReadInput (int argc, char** argv, CalibrationArgs* args);
+static void WipeInput (CalibrationArgs* args);
+static int ValidateInput (CalibrationArgs* args);
+static OutputType ParseOutput (const char* outArg);
+static int Calibrate (CalibrationArgs* args);
+
+static StockCollection* GetTargetStocks (CalibrationArgs* args);
 static MomentumHistory* GetStockMomentum (Stock* stock, StockHistory* history, StockMomentumAttributes* stockAttr, MomentumAttributes* system);
-static void GraphStock (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, DbGraphParams* params);
+
+static void ProcessStock (Stock* stock, CalibrationArgs* args);
+static void DisplayStock (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, CalibrationArgs* args);
+static void PrintStock (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, CalibrationArgs* args);
+static void PrintStockDetailed (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, CalibrationArgs* args);
+static void GraphStock (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, CalibrationArgs* params);
 
 int main (int argc, char** argv)
 {
-  int i, stockId;
-  MomentumAttributes* system;
-  StockMomentumAttributes* stockAttr;
-  DbGraphParams* graphParams;
+  int result; 
+  CalibrationArgs args;
+  ReadInput (argc, argv, &args);
+
+  if (!(result = ValidateInput (&args)))
+    result = Calibrate (&args);
+
+  WipeInput (&args);
+  return result;
+}
+
+static void ReadInput (int argc, char** argv, CalibrationArgs* args)
+{
+  int c;
+  char* output = NULL;
+  const char* optstr = "du:p:s:o:";
+
+  InitCalibrationArgs (args);
+  while ((c = getopt (argc, argv, optstr)) > 0)
+  {
+    switch (c)
+    {
+      case 'u':
+        args->UserName = optarg;
+        break;
+
+      case 'p':
+        args->Password = optarg;  
+        break;
+
+      case 's':
+        args->StockId = atoi (optarg);
+        break;
+
+      case 'o':
+        output = optarg;
+        break;
+
+      case 'd':
+        args->Detailed = 1;
+        break;
+    }
+  }
+
+  args->Output = ParseOutput (output);
+}
+
+static void InitCalibrationArgs (CalibrationArgs* args)
+{
+  args->System = NULL;
+  args->StockAttributes = NULL;
+  args->GraphAttributes = NULL;
+  args->Output = Unknown;
+  WipeInput (args);
+
+  args->System = GetMomentumAttributes ();
+  args->StockAttributes = GetStockMomentumAttributes ();
+  args->GraphAttributes = GetDbGraphParams ();
+}
+
+static void WipeInput (CalibrationArgs* args)
+{
+  args->UserName = NULL;
+  args->Password = NULL;
+  args->StockId = -1;
+  args->Detailed = 0;
+  
+  CleanseMomentumAttributes (args->System);
+  CleanseStockMomentumAttributes (args->StockAttributes);
+  CleanseGraphParams (args->GraphAttributes);
+  CleanseDbConnectionSettings ();
+}
+
+
+#define VALIDATE_CODE(expr, message, rtn, quiet) if (!(expr)) { if (!quiet) error (message); return rtn; }
+#define VALIDATE(expr, message) VALIDATE_CODE(expr, message, 1, 0)
+#define VALIDATE_STR(attr, attrName) VALIDATE (args->attr != NULL, "Must provide input for " #attrName ".")
+#define VALIDATE_QUIET(expr) VALIDATE_CODE(expr, NULL, 1, 1)
+static int ValidateInput (CalibrationArgs* args)
+{
+  VALIDATE_STR (UserName, user name);
+  VALIDATE_STR (Password, password);
+
+  SetDb (args->UserName, args->Password);
+  VALIDATE_QUIET (!ValidateConnection());
+  return 0;
+}
+
+static OutputType ParseOutput (const char* outArg)
+{
+  int cflags;
+  regex_t graphExpr, consoleExpr;
+  const char* graphExprStr = "^ *g(raph|rph|ph)? *$";
+  const char* consoleExprStr = "^ *c(onsole|ons?)? *$";
+  OutputType type;
+
+  type = DEFAULT_OUTPUT;
+  if (outArg != NULL)
+  {
+    cflags = 0 | REG_NOSUB | REG_EXTENDED | REG_ICASE;
+
+    regcomp (&graphExpr, graphExprStr, cflags);
+    regcomp (&consoleExpr, consoleExprStr, cflags);
+
+    if (!regexec (&graphExpr, outArg, 0, NULL, 0))
+      type = Graph;
+
+    if (!regexec (&consoleExpr, outArg, 0, NULL, 0))
+      type = Console;
+
+    regfree (&graphExpr);
+    regfree (&consoleExpr);
+  }
+  return type;
+}
+
+static int Calibrate (CalibrationArgs* args)
+{
+  int i;
   StockCollection* stocks;
   StockHistory* history;
-  Stock* stock;
-  char *user, *password;
 
-  user = argv[1];
-  password = argv[2];
-  stockId = atoi (argv[3]);
-
-  SetDb (user, password);
-  system = GetMomentumAttributes ();
-  stockAttr = GetStockMomentumAttributes ();
-  graphParams = GetDbGraphParams ();
-
-  history = GetStockHistoryById (stockId);
-  stocks = GetStockById (stockId); //GetStocks ("IsAlive = 1");
+  stocks = GetTargetStocks (args);
   for (i=0; i<stocks->Count; i++)
-    ProcessStock (&stocks->Data[i], stockAttr, system, graphParams);
+    ProcessStock (&stocks->Data[i], args);
+  
 
   CleanseStocks (stocks);
-  CleanseGraphParams (graphParams);
-  CleanseStockMomentumAttributes (stockAttr);
-  CleanseMomentumAttributes (system);
+  return 0;
+}
+
+static StockCollection* GetTargetStocks (CalibrationArgs* args)
+{
+  const char* targetStocks = "IsAlive = 1";
+  return (args->StockId > 0)
+    ? GetStockById (args->StockId)
+    : GetStocks (targetStocks);
 }
 
 static MomentumAttributes* GetMomentumAttributes ()
 {
   double degreeOfAttack;
   double tCoefficient, lCoefficient, gravity, airDensity, 
-    angleOfAttack, vehicleAspectRatio, vehicleDensity, acceleration;
+    angleOfAttack, vehicleAspectRatio, vehicleDensity,
+    acceleration, sprintLength;
 
-  degreeOfAttack = 30;
+  degreeOfAttack = 15;
 
   tCoefficient = 0.7;
   lCoefficient = 1;
@@ -66,11 +213,11 @@ static MomentumAttributes* GetMomentumAttributes ()
   vehicleAspectRatio = 2.5;
   vehicleDensity = 120;
   acceleration = 5;
+  sprintLength = 75;
   
   return NewMomentumAttributes (tCoefficient, lCoefficient, gravity, airDensity,
-    angleOfAttack, vehicleAspectRatio, vehicleDensity, acceleration);
+    angleOfAttack, vehicleAspectRatio, vehicleDensity, acceleration, sprintLength);
 }
-
 
 static StockMomentumAttributes* GetStockMomentumAttributes ()
 {
@@ -133,7 +280,7 @@ static void SetDb (char* user, char* pass)
   SetDbConnectionSettings (host, user, pass, dbName, 0, NULL, 0);
 }
 
-static void ProcessStock (Stock* stock, StockMomentumAttributes* stockAttr, MomentumAttributes* system, DbGraphParams *graphParams)
+static void ProcessStock (Stock* stock, CalibrationArgs* args)
 {
   int stockId;
   StockHistory* stockHistory;
@@ -141,22 +288,86 @@ static void ProcessStock (Stock* stock, StockMomentumAttributes* stockAttr, Mome
 
   stockId = stock->StockId;
   stockHistory = GetStockHistoryById (stockId);
-  momentumHistory = NewStockMomentumHistory (stockHistory, system, stockAttr);
+  momentumHistory = NewStockMomentumHistory (stockHistory, args->System, args->StockAttributes);
 
-  GraphStock (stock, stockHistory, momentumHistory, graphParams);
+  DisplayStock (stock, stockHistory, momentumHistory, args);
 
   CleanseStockHistory (stockHistory);
   CleanseMomentumHistory (momentumHistory);
 }
 
-static void GraphStock (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, DbGraphParams* params)
+static void DisplayStock (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, CalibrationArgs* args)
+{
+
+  DisplayFunction displayFunc = NULL;
+  
+  switch (args->Output)
+  {
+    case Console:
+      displayFunc = args->Detailed 
+        ? PrintStockDetailed
+        : PrintStock;
+      break;
+
+    case Graph:
+      displayFunc = GraphStock;
+      break;
+
+    default:
+      displayFunc = NULL;
+      break;
+  }
+
+  if (displayFunc != NULL)
+    displayFunc (stock, stockHistory, momentumHistory, args);
+}
+
+static void PrintStock (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, CalibrationArgs* args)
+{
+  int i, count;
+  double momentumSummation, avgMomentum;
+  const char* outputFmt = "Stock: %-12dMomentum: %0.2f\n";
+
+  count = stockHistory->Count;
+  momentumSummation = 0;
+  for (i=0; i<count; i++)
+  {
+    Momentum* momentum = &momentumHistory->Momentums[i];
+    momentumSummation += (momentum->Mass * momentum->Velocity.Magnitude);
+  }
+
+  avgMomentum = (momentumSummation / (double) count);
+
+  printf (outputFmt, stock->StockId, avgMomentum);
+}
+
+static void PrintStockDetailed (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, CalibrationArgs* args)
+{
+  int i, count;
+  const double mphConv = 2.23694;
+  const char* stockOutputFmt = "Stock: %s\n";
+  const char* momentumFmt = "Speed: %.2f\n";
+
+  printf (stockOutputFmt, stock->Ticker);
+  count = stockHistory->Count;
+  for (i = 0; i<count; i++)
+  {
+    Momentum* momentum = &momentumHistory->Momentums[i];
+    printf (momentumFmt, momentum->Velocity.Magnitude * mphConv);
+    sleep (1);
+  }
+}
+
+static void GraphStock (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, CalibrationArgs* args)
 {
   char* ticker, *fileName;
   const char* fileFormat = "%s.%s";
   DbPlotSet *stockPlot, *momentumPlot; 
   DbGraph* stockGraph;
+  DbGraphParams* params;
 
   // Set the File Name
+  params = args->GraphAttributes;
   ticker = stock->Ticker;
   fileName = malloc (strlen (ticker) + strlen (fileFormat) + strlen (params->Type) -4 +1);
   sprintf (fileName, fileFormat, ticker, params->Type);

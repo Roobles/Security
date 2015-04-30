@@ -23,5 +23,5 @@ void trace (const char* message);
 char* strclone (const char* source);
 char* BuildClause (const char* format, const char* arg, int* length);
 
-void tryfree (char* str);
+void tryfree (void* str);
 #endif

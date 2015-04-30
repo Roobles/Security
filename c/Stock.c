@@ -20,7 +20,7 @@ StockCollection* GetStockById (int id)
   return GetStocks (where);
 }
 
-StockCollection* GetStocks (char* where)
+StockCollection* GetStocks (const char* where)
 {
   StockCollection* stocks;
   char* contents, *from, *orderBy;
@@ -37,10 +37,11 @@ StockCollection* GetStocks (char* where)
 
 void CleanseStocks (StockCollection* stocks)
 {
-  tryfree (stocks->Filter);
+  stocks->Count = 0;
 
-  free (stocks->Data);
-  free (stocks);
+  tryfree (stocks->Filter);
+  tryfree (stocks->Data);
+  tryfree (stocks);
 }
 
 

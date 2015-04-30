@@ -9,6 +9,7 @@ typedef struct
 {
   unsigned int Count;
   void* Data;
+  char* Filter;
 } DbCollection;
 
 // SQL Macros
@@ -24,4 +25,6 @@ typedef struct
 void DbSelect (const char* contents, const char* tableName, 
   const char* where, const char* orderby, DbCollection* collection, 
   DataTranslator translator, unsigned int collectionSize);
+
+int ValidateConnection ();
 #endif

@@ -18,6 +18,7 @@ typedef struct
 DbConnectionSettings* GetDbConnectionSettings ();
 void SetDbConnectionSettings (const char* host, const char* user, const char* password,
   const char* dbName, unsigned int port, const char* socket, unsigned long flag);
+void CleanseDbConnectionSettings ();
 
 MYSQL* NewDbConnection();
 void CleanseDbConnection (MYSQL* conn);

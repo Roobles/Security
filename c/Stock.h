@@ -24,12 +24,11 @@ typedef struct
 {
   unsigned int Count;
   Stock* Data;
-  
   char* Filter;
 } StockCollection;
 
 StockCollection* GetStockById (int id);
-StockCollection* GetStocks (char* where);
+StockCollection* GetStocks (const char* where);
 
 void CleanseStocks (StockCollection* stocks);
 void CleanseStock (Stock* stock);

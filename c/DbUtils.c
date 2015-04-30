@@ -32,6 +32,7 @@ void DbSelect (const char* contents, const char* tableName,
 
   collection->Count = resultCount = mysql_num_rows (result);
   collection->Data = malloc (collectionSize * resultCount);
+  collection->Filter = strclone (where);
 
   for (i=0; row = mysql_fetch_row (result); i++)
     translator (&((char*)collection->Data)[i*collectionSize], (MYSQL_ROW*) row);
@@ -40,6 +41,18 @@ void DbSelect (const char* contents, const char* tableName,
   CleanseDbConnection (conn);
 
   free (selectCmd);
+}
+
+int ValidateConnection ()
+{
+  int result;
+  MYSQL* conn;
+
+  conn = NewDbConnection ();
+  result = (conn == NULL);
+  CleanseDbConnection (conn);
+
+  return result;
 }
 
 // Static Functions

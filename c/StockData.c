@@ -46,8 +46,11 @@ StockHistory* GetStockHistoryById (int stockId)
 
 void CleanseStockHistory (StockHistory* history)
 {
-  free (history->Data);
-  free (history);
+  history->Count = 0;
+
+  tryfree (history->Data);
+  tryfree (history->Filter);
+  tryfree (history);
 }
 
 void PrintStockHistory (StockHistory* history)

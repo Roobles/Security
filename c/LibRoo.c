@@ -25,7 +25,7 @@ MessageLevel _messageLevel = DEFAULT_MESSAGE_LEVEL;
 // Function Definitions
 static FILE* get_std_stream ();
 static FILE* get_err_stream ();
-static void print_message (MessageLevel level, const char* prefix, const char* color, const char* message, FILE* stream);
+static void print_message (MessageLevel level, const char* color, const char* prefix, const char* message, FILE* stream);
 
 // Messaging
 void SetMessageLevel (MessageLevel level)
@@ -96,10 +96,13 @@ char* BuildClause (const char* format, const char* arg, int* length)
   return clause;
 }
 
-void tryfree (char* str)
+void tryfree (void* str)
 {
   if (str != NULL)
+  {
     free (str);
+    str = NULL;
+  }
 }
 
 // Static functions
@@ -113,8 +116,8 @@ static FILE* get_err_stream ()
   return stderr;
 }
 
-static void print_message (MessageLevel level, const char* prefix, const char* color, const char* message, FILE* stream)
+static void print_message (MessageLevel level, const char* color, const char* prefix, const char* message, FILE* stream)
 {
   if (level <= _messageLevel)
-    printf ("\e[%sm%s\e[0m: %s\n", color, prefix, message);
+    fprintf (stream, "\e[%sm%s\e[0m: %s\n", color, prefix, message);
 }

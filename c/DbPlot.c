@@ -175,12 +175,14 @@ void CleanseGraph (DbGraph* graph)
 
 void CleanseGraphParams (DbGraphParams* params)
 {
+  if (params == NULL) return;
   CleansePlotPalette (params->LineColors);
   tryfree (params);
 }
 
 void CleansePlotPalette (DbPlotPalette* palette)
 {
+  if (palette == NULL) return;
   tryfree (palette->Colors);
   tryfree (palette);
 }

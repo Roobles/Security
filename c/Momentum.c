@@ -9,7 +9,7 @@ static double GetWeight (double mass, MomentumAttributes* system);
 
 static double GetTurnRatio (double direction, double targetDirection);
 static double GetRequiredSpeed (double intialSpeed, double mass, double turnRatio, double traction);
-static double GetBreakForce (double initialSpeed, double mass, double adjustedSpeed, MomentumAttributes* system);
+static double GetBreakForce (double initialSpeed, double mass, double requiredSpeed, MomentumAttributes* system);
 static double GetAdjustedSpeed (double initialSpeed, double requiredSpeed, double breakForce, double traction, MomentumAttributes* system);
 
 // Implementation of Momentum.h
@@ -39,11 +39,12 @@ void ApplyMomentum (Momentum* inertial, Momentum* prodigy, MomentumTangents tang
 
 void CleanseMomentumAttributes (MomentumAttributes* system)
 {
-  free (system);
+  tryfree (system);
 }
 
 MomentumAttributes* NewMomentumAttributes (double tCoefficient, double lCoefficient, double gravity, 
-  double airDensity, double angleOfAttack, double vehicleAspectRatio, double vehicleDensity, double acceleration)
+  double airDensity, double angleOfAttack, double vehicleAspectRatio, double vehicleDensity,
+  double acceleration, double sprintLength)
 {
   MomentumAttributes* system;
 
@@ -56,6 +57,7 @@ MomentumAttributes* NewMomentumAttributes (double tCoefficient, double lCoeffici
   system->VehicleAspectRatio = vehicleAspectRatio;
   system->VehicleDensity = vehicleDensity;
   system->Acceleration = acceleration;
+  system->SprintLength = sprintLength;
 
   return system;
 }
@@ -156,7 +158,7 @@ static double GetDownforceMass (double mass, double magnitude, MomentumAttribute
   // r = Air Resistance
   // V = Velocity
 
-  downforce = (vehicleWidth * wingHeight * angleOfAttack * lCoefficient * airDensity * powf (magnitude, 2)) / 2;
+  downforce = (vehicleWidth * wingHeight * angleOfAttack * lCoefficient * airDensity * (magnitude * magnitude)) / 2;
   return downforce / gCoefficient;
 }
 
@@ -217,18 +219,60 @@ static double GetRequiredSpeed (double initialSpeed, double mass, double turnRat
   return speed;
 }
 
-static double GetBreakForce (double initialSpeed, double mass, double adjustedSpeed, MomentumAttributes* system)
+static double GetBreakForce (double initialSpeed, double mass, double requiredSpeed, MomentumAttributes* system)
 {
-  // TODO: Implement this.
-  return 0;
+  double deltaSpeed, sprintLength, time;
+  double decelleration;
+
+  
+  // a = deltaSpeed / time
+  // time = 2 * distance / deltaSpeed
+  // a = deltaSpeed^2 / (2 * distance)
+
+  sprintLength = system->SprintLength;
+  deltaSpeed = initialSpeed - requiredSpeed;
+  decelleration = (deltaSpeed * deltaSpeed) / (2 * sprintLength);
+  return fabs (decelleration * mass);
 }
 
 static double GetAdjustedSpeed (double initialSpeed, double requiredSpeed, double breakForce, double traction, MomentumAttributes* system)
 {
-  // TODO: Implement this.
-  double accelleration;
-  accelleration = 10;
-  
-  // TODO: No.  Seriously.  Do this.
-  return requiredSpeed + (((traction - breakForce) / traction) * accelleration);
+  double acceleration, sprintLength;
+  double initialDistance, finalDistance;
+  double initialTime, finalTime, deltaTime;
+  double maxAcceleration;
+
+  double breakRatio, accelerationRatio, deltaSpeed;
+  double adjustedSpeed;
+
+  acceleration = system->Acceleration;
+  sprintLength = system->SprintLength;
+  breakRatio = breakForce / traction;
+  accelerationRatio = (1 - breakRatio);
+
+  // time = t
+  // acceleration = A m/s^2
+  // speed = A * t m/s
+  // distance = a/2 * t^2 m
+
+  // initialDistance = s/(2time) * t^2 | 1/2 * s * t | 1/2 * s * s/a | s^2/(2a)
+  // initialDistance = s^2/(2a)
+  // finalDistance = initialDistance + sprintLength
+  // time = (2*distance2 / a)^(1/2)
+  // initialTime = ((2 * initialDistance) / a)^(1/2)
+  // finalTime = ((2 * finalDistance) / a )^(1/2)
+
+  // maxSpeed = (a * deltaTime) +  initialSpeed
+
+  initialDistance = (initialSpeed * initialSpeed) / (2 * acceleration);
+  finalDistance = initialDistance + sprintLength;
+  initialTime = sqrt ((2 * initialDistance) / acceleration);
+  finalTime = sqrt ((2 * finalDistance) / acceleration);
+  deltaTime = finalTime - initialTime;
+  maxAcceleration = (acceleration * deltaTime);
+
+  deltaSpeed = maxAcceleration * accelerationRatio;
+  adjustedSpeed = requiredSpeed + deltaSpeed;
+
+  return adjustedSpeed;
 }
