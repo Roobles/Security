@@ -224,15 +224,18 @@ static double GetBreakForce (double initialSpeed, double mass, double requiredSp
   double deltaSpeed, sprintLength, time;
   double decelleration;
 
-  
-  // a = deltaSpeed / time
-  // time = 2 * distance / deltaSpeed
-  // a = deltaSpeed^2 / (2 * distance)
+  // time = t
+  // acceleration = A m/s^2
+  // speed = A * t m/s
+  // acceleration = dS / t
+  // speed = dD / t
+  // dD/t = dS/t * t | dD/t = dS | t = dD/dS
+  // A = speed/t | dD/t * dS/dD | dS/t | dS * dS/dD
+  // A = dS^2 / dD
 
-  sprintLength = system->SprintLength;
   deltaSpeed = initialSpeed - requiredSpeed;
-  decelleration = (deltaSpeed * deltaSpeed) / (2 * sprintLength);
-  return fabs (decelleration * mass);
+  decelleration = (deltaSpeed * deltaSpeed) / sprintLength;
+  return decelleration * mass;
 }
 
 static double GetAdjustedSpeed (double initialSpeed, double requiredSpeed, double breakForce, double traction, MomentumAttributes* system)
@@ -253,7 +256,7 @@ static double GetAdjustedSpeed (double initialSpeed, double requiredSpeed, doubl
   // time = t
   // acceleration = A m/s^2
   // speed = A * t m/s
-  // distance = a/2 * t^2 m
+  // distance = A/2 * t^2 m
 
   // initialDistance = s/(2time) * t^2 | 1/2 * s * t | 1/2 * s * s/a | s^2/(2a)
   // initialDistance = s^2/(2a)
