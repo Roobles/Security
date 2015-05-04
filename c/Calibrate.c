@@ -72,7 +72,7 @@ static void ReadInput (int argc, char** argv, CalibrationArgs* args)
 {
   int c;
   char* output = NULL;
-  const char* optstr = "du:p:s:o:";
+  const char* optstr = "du:p:s:o:h:w:l:";
 
   InitCalibrationArgs (args);
   while ((c = getopt (argc, argv, optstr)) > 0)
@@ -95,9 +95,20 @@ static void ReadInput (int argc, char** argv, CalibrationArgs* args)
         output = optarg;
         break;
 
+      case 'h':
+        args->GraphAttributes->Height = atoi (optarg);
+        break;
+
+      case 'w':
+        args->GraphAttributes->Width = atoi (optarg);
+        break;
+
       case 'd':
         args->Detailed = 1;
         break;
+
+      case 'l':
+        args->System->SprintLength = atoi (optarg);
     }
   }
 
