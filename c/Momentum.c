@@ -3,14 +3,28 @@
 #include <mysql.h>
 #include "Momentum.h"
 
-static double GetTraction (Momentum* inertial, MomentumAttributes* system);
-static double GetDownforceMass (double mass, double magnitude, MomentumAttributes* system);
+typedef struct
+{
+  double Width;
+  double Height;
+  double Length;
+  double Mass;
+  double Volume;
+} VehicleAttributes;
+
+static void GetVehicleAttributes (VehicleAttributes* specs, MomentumTangents* tangents, MomentumAttributes* system);
+static double GetTraction (VehicleAttributes* specs, double speed, MomentumAttributes* system);
+static double GetDownforceMass (VehicleAttributes* specs, double speed, MomentumAttributes* system);
 static double GetWeight (double mass, MomentumAttributes* system);
 
 static double GetTurnRatio (double direction, double targetDirection);
 static double GetRequiredSpeed (double intialSpeed, double mass, double turnRatio, double traction);
 static double GetBreakForce (double initialSpeed, double mass, double requiredSpeed, MomentumAttributes* system);
-static double GetAdjustedSpeed (double initialSpeed, double requiredSpeed, double breakForce, double traction, MomentumAttributes* system);
+
+static double GetMaxAcceleration (VehicleAttributes* specs, double initialSpeed, MomentumAttributes* system);
+
+static double GetAdjustedSpeed (VehicleAttributes* specs, double initialSpeed, double requiredSpeed,
+  double breakForce, double traction, MomentumAttributes* system);
 
 // Implementation of Momentum.h
 void SetMomentum (Momentum* prodigy, MomentumTangents tangents, double magnitude)
@@ -23,16 +37,19 @@ void SetMomentum (Momentum* prodigy, MomentumTangents tangents, double magnitude
 
 void ApplyMomentum (Momentum* inertial, Momentum* prodigy, MomentumTangents tangents, MomentumAttributes* system)
 {
+  VehicleAttributes specs;
   double requiredTurn, turnRatio, breakForce, requiredSpeed;
   double traction, initialSpeed, speed;
 
-  traction = GetTraction (inertial, system);
+  GetVehicleAttributes (&specs, &tangents, system);
+
   initialSpeed = inertial->Velocity.Magnitude;
 
+  traction = GetTraction (&specs, initialSpeed, system);
   turnRatio = GetTurnRatio (inertial->Velocity.Direction, tangents.Direction);
-  requiredSpeed = GetRequiredSpeed (initialSpeed, tangents.Mass, turnRatio, traction);
-  breakForce = GetBreakForce (initialSpeed, tangents.Mass, requiredSpeed, system);
-  speed = GetAdjustedSpeed (initialSpeed, requiredSpeed, breakForce, traction, system);
+  requiredSpeed = GetRequiredSpeed (initialSpeed, specs.Mass, turnRatio, traction);
+  breakForce = GetBreakForce (initialSpeed, specs.Mass, requiredSpeed, system);
+  speed = GetAdjustedSpeed (&specs, initialSpeed, requiredSpeed, breakForce, traction, system);
 
   SetMomentum (prodigy, tangents, speed);
 }
@@ -44,7 +61,7 @@ void CleanseMomentumAttributes (MomentumAttributes* system)
 
 MomentumAttributes* NewMomentumAttributes (double tCoefficient, double lCoefficient, double gravity, 
   double airDensity, double angleOfAttack, double vehicleAspectRatio, double vehicleDensity,
-  double acceleration, double sprintLength)
+  double vehicleThrust, double vehicleDrag, double sprintLength)
 {
   MomentumAttributes* system;
 
@@ -56,7 +73,8 @@ MomentumAttributes* NewMomentumAttributes (double tCoefficient, double lCoeffici
   system->AngleOfAttack = angleOfAttack;
   system->VehicleAspectRatio = vehicleAspectRatio;
   system->VehicleDensity = vehicleDensity;
-  system->Acceleration = acceleration;
+  system->VehicleThrustForce = vehicleThrust;
+  system->VehicleDragCoefficient = vehicleDrag;
   system->SprintLength = sprintLength;
 
   return system;
@@ -102,7 +120,29 @@ void CleanseMomentumHistory (MomentumHistory* history)
 }
 
 // Static Functions
-static double GetTraction (Momentum* inertial, MomentumAttributes* system)
+static void GetVehicleAttributes (VehicleAttributes* specs, MomentumTangents* tangents, MomentumAttributes* system)
+{
+  double mass, volume;
+  double width, length, height;
+  double density, aspectRatio;
+
+  mass = tangents->Mass;
+  aspectRatio = system->VehicleAspectRatio;
+  density = system->VehicleDensity;
+  volume = mass / density;
+
+  length = powf (volume / powf(aspectRatio, 2.0), (1.0/3.0));
+  width = length * aspectRatio;
+  height = width;
+
+  specs->Width = width;
+  specs->Height = height;
+  specs->Length = length;
+  specs->Mass = mass;
+  specs->Volume = volume;
+}
+
+static double GetTraction (VehicleAttributes* specs, double speed, MomentumAttributes* system)
 {
   double traction;
   double mass, magnitude, tCoefficient;
@@ -114,10 +154,8 @@ static double GetTraction (Momentum* inertial, MomentumAttributes* system)
   // Cf *is* Traction Coefficient 
   // L(N) = Mass * Gravity Coefficient
 
-  mass = inertial->Mass;
-  magnitude = inertial->Velocity.Magnitude;
-
-  downforceMass = GetDownforceMass (mass, magnitude, system);
+  mass = specs->Mass;
+  downforceMass = GetDownforceMass (specs, speed, system);
   totalMass = mass + downforceMass;
   weight = GetWeight (totalMass, system);
   tCoefficient = system->TractionCoefficient;
@@ -127,30 +165,29 @@ static double GetTraction (Momentum* inertial, MomentumAttributes* system)
   return traction;
 }
 
-static double GetDownforceMass (double mass, double magnitude, MomentumAttributes* system)
+static double GetDownforceMass (VehicleAttributes* specs, double speed, MomentumAttributes* system)
 {
-  double vehicleDensity, aspectRatio; 
-  double vehicleVolume, vehicleLength, vehicleHeight, vehicleWidth, wingHeight;
+  double wingWidthRatio, wingHeightRatio;
+  double vehicleHeight, vehicleWidth, wingHeight, wingWidth;
   double angleOfAttack, lCoefficient, gCoefficient, airDensity;
   double downforce;
 
   // Retrieve system variables.
   airDensity = system->AirDensity;
-  vehicleDensity = system->VehicleDensity;
-  aspectRatio = system->VehicleAspectRatio;
   angleOfAttack = system->AngleOfAttack;
   lCoefficient = system->LiftCoefficient;
   gCoefficient = system->Gravity;
-  
-  // Get height and length of vehicle.
-  // Assume width = height, and width = wingspan.
-  // Assume wing height = vehicle height.
 
-  vehicleVolume = mass / vehicleDensity;
-  vehicleLength = powf ((vehicleVolume / aspectRatio), (1.0/3.0));
-  vehicleHeight = vehicleLength / aspectRatio;
-  vehicleWidth = vehicleHeight;
-  wingHeight = vehicleHeight / 10.0; // TODO: Make this variable.
+  // Assume width = height, and width = wingspan.
+  vehicleHeight = specs->Height;
+  vehicleWidth = specs->Width;
+
+  // TODO: Make these variable.
+  wingWidthRatio = 0.95;
+  wingHeightRatio = 0.10;
+
+  wingHeight = vehicleHeight * wingHeightRatio; 
+  wingWidth = vehicleWidth * wingWidthRatio;
 
   // D(N) = 1/2 WingSpan * Height * alpha * L * r * V^2
   // alpha = AngleOfAttack (radians)
@@ -158,7 +195,7 @@ static double GetDownforceMass (double mass, double magnitude, MomentumAttribute
   // r = Air Resistance
   // V = Velocity
 
-  downforce = (vehicleWidth * wingHeight * angleOfAttack * lCoefficient * airDensity * (magnitude * magnitude)) / 2;
+  downforce = (vehicleWidth * wingHeight * angleOfAttack * lCoefficient * airDensity * powf (speed, 2.0)) / 2;
   return downforce / gCoefficient;
 }
 
@@ -183,9 +220,7 @@ static double GetTurnRatio (double direction, double targetDirection)
   theta = (m1 - m2) / (1.0 + m1*m2);
   
   maxDegree = 180.0;
-  pi = 3.14;
-
-  inside = fabs ((atanf (theta) * maxDegree) / pi);
+  inside = fabs ((atanf (theta) * maxDegree) / M_PI);
   outside = maxDegree - inside;
 
   target = ((m1 >= 0 && m2 >= 0) || (m1 <=0 && m2 <= 0))
@@ -206,7 +241,7 @@ static double GetRequiredSpeed (double initialSpeed, double mass, double turnRat
   // speed = traction / (mass * turnRatio);
 
   double turnForce, speed, momentum;
-  double breakAmmount, acceleration;
+  double breakAmmount;
 
   speed = initialSpeed;
   momentum = speed * mass;
@@ -238,7 +273,27 @@ static double GetBreakForce (double initialSpeed, double mass, double requiredSp
   return decelleration * mass;
 }
 
-static double GetAdjustedSpeed (double initialSpeed, double requiredSpeed, double breakForce, double traction, MomentumAttributes* system)
+static double GetMaxAcceleration (VehicleAttributes* specs, double initialSpeed, MomentumAttributes* system)
+{
+  // TODO: Consider using calculus.
+  double dragCoefficient, area, airDensity;
+  double dragForce, thrustForce, netForce;
+
+  area = specs->Width * specs->Height;
+  dragCoefficient = 0.914; 
+  airDensity = system->AirDensity;
+  dragForce = (dragCoefficient * area * airDensity * powf (initialSpeed, 2.0)) / 2; // TODO: Implement this.
+
+  thrustForce = system->VehicleThrustForce;
+  netForce = thrustForce > dragForce 
+    ? thrustForce - dragForce
+    : 0.01;
+
+  return netForce / specs->Mass;
+}
+
+static double GetAdjustedSpeed (VehicleAttributes* specs, double initialSpeed, double requiredSpeed,
+  double breakForce, double traction, MomentumAttributes* system)
 {
   double acceleration, sprintLength;
   double initialDistance, finalDistance;
@@ -248,7 +303,7 @@ static double GetAdjustedSpeed (double initialSpeed, double requiredSpeed, doubl
   double breakRatio, accelerationRatio, deltaSpeed;
   double adjustedSpeed;
 
-  acceleration = system->Acceleration;
+  acceleration = GetMaxAcceleration (specs, initialSpeed, system);
   sprintLength = system->SprintLength;
   breakRatio = breakForce / traction;
   accelerationRatio = (1 - breakRatio);

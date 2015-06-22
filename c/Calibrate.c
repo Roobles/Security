@@ -212,7 +212,7 @@ static MomentumAttributes* GetMomentumAttributes ()
   double degreeOfAttack;
   double tCoefficient, lCoefficient, gravity, airDensity, 
     angleOfAttack, vehicleAspectRatio, vehicleDensity,
-    acceleration, sprintLength;
+    vehicleThrust, vehicleDrag, sprintLength;
 
   degreeOfAttack = 15;
 
@@ -221,13 +221,15 @@ static MomentumAttributes* GetMomentumAttributes ()
   gravity = 9.8;
   airDensity = 1.2;
   angleOfAttack = (degreeOfAttack / 3.14) * 180.0;
-  vehicleAspectRatio = 2.5;
-  vehicleDensity = 120;
-  acceleration = 5;
+  vehicleAspectRatio = .3;
+  vehicleDensity = 151;
+  vehicleThrust = 8500; 
+  vehicleDrag = 0.914;
   sprintLength = 75;
   
-  return NewMomentumAttributes (tCoefficient, lCoefficient, gravity, airDensity,
-    angleOfAttack, vehicleAspectRatio, vehicleDensity, acceleration, sprintLength);
+  return NewMomentumAttributes (tCoefficient, lCoefficient, gravity,
+    airDensity, angleOfAttack, vehicleAspectRatio, vehicleDensity,
+    vehicleThrust, vehicleDrag, sprintLength);
 }
 
 static StockMomentumAttributes* GetStockMomentumAttributes ()
@@ -355,17 +357,22 @@ static void PrintStock (Stock* stock, StockHistory* stockHistory, MomentumHistor
 static void PrintStockDetailed (Stock* stock, StockHistory* stockHistory, MomentumHistory* momentumHistory, CalibrationArgs* args)
 {
   int i, count;
+  double speed, price, momentumVal;
   const double mphConv = 2.23694;
   const char* stockOutputFmt = "Stock: %s\n";
-  const char* momentumFmt = "Speed: %.2f\n";
+  const char* momentumFmt = "Speed: %.2f\tPrice: $%.2f\tMomentum: %.2f\n";
 
   printf (stockOutputFmt, stock->Ticker);
   count = stockHistory->Count;
   for (i = 0; i<count; i++)
   {
     Momentum* momentum = &momentumHistory->Momentums[i];
-    printf (momentumFmt, momentum->Velocity.Magnitude * mphConv);
-    sleep (1);
+    StockData* data = &stockHistory->Data[i];
+    speed = momentum->Velocity.Magnitude * mphConv;
+    price = data->Close;
+    momentumVal = momentum->Mass * momentum->Velocity.Magnitude;
+    printf (momentumFmt, speed, price, momentumVal);
+    //sleep (1);
   }
 }
 

@@ -44,6 +44,7 @@ static double GetMassFromStock (StockData* stock, StockMomentumAttributes* stock
   baseWeight = stockAttr->BaseWeight;
   mCoefficient = stockAttr->MassCoefficient;
   price = STOCK_PRICE (stock);
+  if (price <= 0) price = 0.001;
   
   // TODO: Maybe add a pointer to a logarithmic function for determining mass.
   mass = (log (price) * mCoefficient) + baseWeight;

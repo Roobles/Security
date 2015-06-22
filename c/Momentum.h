@@ -39,8 +39,9 @@ typedef struct
   // Height = Width. Length = (Height * AspectRatio)
   double VehicleAspectRatio;
   double VehicleDensity;
+  double VehicleThrustForce;
+  double VehicleDragCoefficient;
 
-  double Acceleration;
   double SprintLength;
 
 } MomentumAttributes;
@@ -54,7 +55,7 @@ void ApplyMomentum (Momentum* inertial, Momentum* prodigy, MomentumTangents tang
 void CleanseMomentumAttributes (MomentumAttributes* system);
 MomentumAttributes* NewMomentumAttributes (double tCoefficient, double lCoefficient, double gravity, 
   double airDensity, double angleOfAttack, double vehicleAspectRatio, double vehicleDensity,
-  double acceleration, double sprintLength);
+  double vehicleThrust, double vehicleDrag, double sprintLength);
 
 #define MOMENTUM_HISTORY(collection, type, init, tangental, attributes, system)               \
   NewMomentumHistory ((DbCollection*) collection, sizeof (type), (MomentumInitializor) init,  \
